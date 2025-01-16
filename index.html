@@ -65,6 +65,7 @@
             color: #555;
         }
     </style>
+    <script src="rooms.js"></script>
 </head>
 <body oncontextmenu="return false;">
     <h1>خريطة القاعات</h1>
@@ -75,76 +76,42 @@
         <input type="text" id="roomNumber" placeholder="أدخل رقم القاعة">
         <select id="roomList">
             <option value="" disabled selected>اختر من القائمة</option>
-            <optgroup label="القاعات">
-                <!-- القاعات ستضاف هنا ديناميكيًا -->
-            </optgroup>
-            <optgroup label="المناطق">
-                <option value="elevator1">مصعد 1</option>
-                <option value="elevator2">مصعد 2</option>
-                <option value="bathroom1">حمام 1</option>
-                <option value="bathroom2">حمام 2</option>
-                <option value="bathroom3">حمام 3</option>
-                <option value="stair1">درج 1</option>
-                <option value="stair2">درج 2</option>
-                <option value="stair3">درج 3</option>
-            </optgroup>
+            <optgroup label="القاعات"></optgroup>
         </select>
-        <button onclick="locateRoom()">بحث</button>
+        <button onclick="locateRoom()">ابحث</button>
     </div>
     <div class="history">
-        <strong>آخر القاعات: </strong>
-        <span id="recentRooms">لا يوجد</span>
+        <p>القاعات الأخيرة: <span id="recentRooms">لا يوجد</span></p>
     </div>
-    <script>
-        // تعريف الإحداثيات داخل نفس الملف
-        const roomCoordinates = {
-            "1003": {x: 37.4, y: 83.68},
-            "1004": {x: 37.62, y: 86.81},
-            "1011": {x: 37.51, y: 77.03},
-            "1012": {x: 36.63, y: 72.09},
-            // المناطق:
-            "elevator1": {x: 45, y: 60},
-            "elevator2": {x: 75, y: 30},
-            "bathroom1": {x: 20, y: 85},
-            "bathroom2": {x: 50, y: 85},
-            "bathroom3": {x: 80, y: 85},
-            "stair1": {x: 30, y: 50},
-            "stair2": {x: 50, y: 50},
-            "stair3": {x: 70, y: 50},
-        };
 
+    <script>
         const roomInput = document.getElementById('roomNumber');
         const roomList = document.getElementById('roomList');
         const recentRoomsSpan = document.getElementById('recentRooms');
-        const maxRecentRooms = 3; // عدد القاعات المحفوظة
+        const maxRecentRooms = 3;
 
-        // تعبئة قائمة القاعات
         function populateRoomList() {
             const roomGroup = roomList.querySelector('optgroup[label="القاعات"]');
             for (const roomNumber in roomCoordinates) {
-                if (!roomNumber.startsWith('elevator') && !roomNumber.startsWith('bathroom') && !roomNumber.startsWith('stair')) {
-                    const option = document.createElement('option');
-                    option.value = roomNumber;
-                    option.textContent = `قاعة ${roomNumber}`;
-                    roomGroup.appendChild(option);
-                }
+                const option = document.createElement('option');
+                option.value = roomNumber;
+                option.textContent = `قاعة ${roomNumber}`;
+                roomGroup.appendChild(option);
             }
         }
 
-        // تحديث قائمة القاعات الأخيرة
         function updateRecentRooms(roomNumber) {
             let recentRooms = JSON.parse(localStorage.getItem('recentRooms')) || [];
             if (!recentRooms.includes(roomNumber)) {
                 if (recentRooms.length >= maxRecentRooms) {
-                    recentRooms.pop(); // حذف الأقدم
+                    recentRooms.pop();
                 }
-                recentRooms.unshift(roomNumber); // إضافة الجديد في البداية
+                recentRooms.unshift(roomNumber);
             }
             localStorage.setItem('recentRooms', JSON.stringify(recentRooms));
             displayRecentRooms();
         }
 
-        // عرض القاعات الأخيرة
         function displayRecentRooms() {
             const recentRooms = JSON.parse(localStorage.getItem('recentRooms')) || [];
             recentRoomsSpan.textContent = recentRooms.length > 0 
@@ -152,7 +119,6 @@
                 : 'لا يوجد';
         }
 
-        // البحث عن القاعة أو المنطقة
         function locateRoom() {
             const roomNumber = roomInput.value || roomList.value;
             const pin = document.getElementById('pin');
@@ -170,7 +136,6 @@
             }
         }
 
-        // تشغيل الوظائف عند التحميل
         window.onload = () => {
             populateRoomList();
             displayRecentRooms();
