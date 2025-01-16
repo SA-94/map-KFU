@@ -6,11 +6,18 @@
     <title>خريطة القاعات</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Cairo', sans-serif;
             margin: 0;
             padding: 0;
             text-align: center;
-            background-color: #f4f4f4;
+            background-color: #f0f0f0;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        h1 {
+            color: #007BFF;
+            margin-top: 20px;
         }
 
         .map-container {
@@ -23,14 +30,17 @@
             background-repeat: no-repeat;
             background-position: center;
             margin: 20px auto;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            border: 3px solid #007BFF;
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
         }
 
         #pin {
             position: absolute;
-            width: 20px;
-            height: 20px;
+            width: 4vw;
+            height: 4vw;
+            max-width: 12px;
+            max-height: 12px;
             background-color: red;
             border-radius: 50%;
             display: none;
@@ -41,13 +51,34 @@
             margin: 20px auto;
         }
 
-        .form-container input, .form-container button, .form-container select {
-            padding: 10px;
+        .form-container input, .form-container button {
+            padding: 12px;
             margin: 5px;
-            font-size: 16px;
+            font-size: 18px;
+            width: 90%;
+            max-width: 400px;
+            border: 2px solid #007BFF;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        /* منع الطباعة والسرقة */
+        button {
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .history {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #555;
+        }
+
+        /* منع النسخ والسرقة */
         body {
             -webkit-user-select: none;
             -moz-user-select: none;
@@ -58,12 +89,6 @@
         body img {
             pointer-events: none;
         }
-
-        .history {
-            margin-top: 20px;
-            font-size: 14px;
-            color: #555;
-        }
     </style>
     <script src="rooms.js"></script>
 </head>
@@ -73,11 +98,8 @@
         <div id="pin"></div>
     </div>
     <div class="form-container">
-        <input type="text" id="roomNumber" placeholder="أدخل رقم القاعة">
-        <select id="roomList">
-            <option value="" disabled selected>اختر من القائمة</option>
-            <optgroup label="القاعات"></optgroup>
-        </select>
+        <input type="text" id="roomInput" list="roomList" placeholder="اكتب رقم القاعة أو اختر">
+        <datalist id="roomList"></datalist>
         <button onclick="locateRoom()">ابحث</button>
     </div>
     <div class="history">
@@ -85,18 +107,16 @@
     </div>
 
     <script>
-        const roomInput = document.getElementById('roomNumber');
+        const roomInput = document.getElementById('roomInput');
         const roomList = document.getElementById('roomList');
         const recentRoomsSpan = document.getElementById('recentRooms');
         const maxRecentRooms = 3;
 
         function populateRoomList() {
-            const roomGroup = roomList.querySelector('optgroup[label="القاعات"]');
             for (const roomNumber in roomCoordinates) {
                 const option = document.createElement('option');
                 option.value = roomNumber;
-                option.textContent = `قاعة ${roomNumber}`;
-                roomGroup.appendChild(option);
+                roomList.appendChild(option);
             }
         }
 
@@ -120,7 +140,7 @@
         }
 
         function locateRoom() {
-            const roomNumber = roomInput.value || roomList.value;
+            const roomNumber = roomInput.value;
             const pin = document.getElementById('pin');
 
             if (roomCoordinates[roomNumber]) {
@@ -128,7 +148,6 @@
                 pin.style.left = `${x}%`;
                 pin.style.top = `${y}%`;
                 pin.style.display = 'block';
-                alert(`تم العثور على القاعة أو المنطقة: ${roomNumber}`);
                 updateRecentRooms(roomNumber);
             } else {
                 alert('رقم القاعة أو المنطقة غير موجود.');
