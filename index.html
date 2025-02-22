@@ -1,241 +1,260 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>خريطة القاعات</title>
-    <style>
-        body {
-            font-family: 'Cairo', sans-serif;
-            margin: 0;
-            padding: 0;
-            text-align: center;
-            background-color: #f0f0f0;
-            color: #333;
-            line-height: 1.6;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>خريطة القاعات</title>
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      background-color: #f0f0f0;
+      color: #333;
+      line-height: 1.6;
+      /* منع النسخ والسرقة */
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
 
-        h1 {
-            color: #007BFF;
-            margin-top: 20px;
-        }
+    h1 {
+      color: #007BFF;
+      margin-top: 20px;
+    }
 
-        .map-container {
-            position: relative;
-            width: 90%;
-            max-width: 901px;
-            aspect-ratio: 901 / 988;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            margin: 20px auto;
-            border: 10px solid #007BFF;
-            border-radius: 12px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
-            background-image: url('map-1.png'); /* الصورة الافتراضية */
-        }
+    .map-container {
+      position: relative;
+      width: 90%;
+      max-width: 901px;
+      aspect-ratio: 901 / 988;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      margin: 20px auto;
+      border: 10px solid #007BFF;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      background-image: url('map-1.png'); /* الصورة الافتراضية */
+    }
 
-        #pin {
-            position: absolute;
-            width: 4vw;
-            height: 4vw;
-            max-width: 12px;
-            max-height: 12px;
-            background-color: red;
-            border-radius: 50%;
-            display: none;
-            transform: translate(-50%, -50%);
-            transition: all 0.5s ease; /* تأثيرات الحركة */
-        }
+    #pin {
+      position: absolute;
+      width: 4vw;
+      height: 4vw;
+      max-width: 12px;
+      max-height: 12px;
+      background-color: red;
+      border-radius: 50%;
+      display: none;
+      transform: translate(-50%, -50%);
+      transition: all 0.5s ease; /* تأثيرات الحركة */
+      /* تأثير وميض للنقطة */
+      animation: blink 1s infinite;
+    }
 
-        .form-container {
-            margin: 20px auto;
-        }
+    @keyframes blink {
+      0% { opacity: 1; }
+      50% { opacity: 0; }
+      100% { opacity: 1; }
+    }
 
-        .form-container input, .form-container button {
-            padding: 12px;
-            margin: 5px;
-            font-size: 18px;
-            width: 90%;
-            max-width: 400px;
-            border: 2px solid #007BFF;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
+    .form-container {
+      margin: 20px auto;
+    }
 
-        button {
-            background-color: #007BFF;
-            color: white;
-            cursor: pointer;
-        }
+    .form-container input, .form-container button {
+      padding: 12px;
+      margin: 5px;
+      font-size: 18px;
+      width: 90%;
+      max-width: 400px;
+      border: 2px solid #007BFF;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
 
-        button:hover {
-            background-color: #0056b3;
-        }
+    button {
+      background-color: #007BFF;
+      color: white;
+      cursor: pointer;
+    }
 
-        .error-message {
-            color: red;
-            font-size: 14px;
-            margin-top: 5px;
-            display: none; /* مخفي افتراضيًا */
-        }
+    button:hover {
+      background-color: #0056b3;
+    }
 
-        .history {
-            margin-top: 20px;
-            font-size: 16px;
-            color: #555;
-        }
+    .error-message {
+      color: red;
+      font-size: 14px;
+      margin-top: 5px;
+      display: none; /* مخفي افتراضيًا */
+    }
 
-        .language-toggle {
-            margin: 20px auto;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-        }
+    .history {
+      margin-top: 20px;
+      font-size: 16px;
+      color: #555;
+    }
 
-        @media (max-width: 600px) {
-            #pin {
-                width: 6vw;
-                height: 6vw;
-            }
-        }
+    .language-toggle {
+      margin: 20px auto;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
 
-        /* منع النسخ والسرقة */
-        body {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-        }
+    @media (max-width: 600px) {
+      #pin {
+        width: 6vw;
+        height: 6vw;
+      }
+    }
 
-        body img {
-            pointer-events: none;
-        }
-    </style>
-    <script src="rooms.js"></script>
+    body img {
+      pointer-events: none;
+    }
+
+    /* تنسيق التذييل */
+    footer {
+      margin-top: 40px;
+      padding: 10px;
+      background-color: #007BFF;
+      color: #fff;
+      font-size: 14px;
+    }
+  </style>
+  <script src="rooms.js"></script>
 </head>
 <body oncontextmenu="return false;">
-    <h1 id="title">خريطة القاعات</h1>
-    <div class="language-toggle">
-        <button onclick="setLanguage('ar')">العربية</button>
-        <button onclick="setLanguage('en')">English</button>
-    </div>
-    <div class="map-container" id="mapContainer">
-        <div id="pin"></div>
-    </div>
-    <div class="form-container">
-        <input type="text" id="roomInput" list="roomList" placeholder="اكتب رقم القاعة أو اختر">
-        <datalist id="roomList"></datalist>
-        <button onclick="locateRoom()">ابحث</button>
-        <button onclick="resetMap()">إعادة تعيين</button>
-        <button onclick="locateMe()">حدد موقعي الحالي</button>
-        <p class="error-message" id="errorMessage">رقم القاعة غير صحيح. حاول مرة أخرى.</p>
-    </div>
-    <div class="history">
-        <p>القاعات الأخيرة: <span id="recentRooms">لا يوجد</span></p>
-    </div>
+  <h1 id="title">خريطة القاعات</h1>
+  <div class="language-toggle">
+    <button onclick="setLanguage('ar')">العربية</button>
+    <button onclick="setLanguage('en')">English</button>
+  </div>
+  <div class="map-container" id="mapContainer">
+    <div id="pin"></div>
+  </div>
+  <div class="form-container">
+    <input type="text" id="roomInput" list="roomList" placeholder="اكتب رقم القاعة أو اختر">
+    <datalist id="roomList"></datalist>
+    <button onclick="locateRoom()">ابحث</button>
+    <button onclick="resetMap()">إعادة تعيين</button>
+    <button onclick="locateMe()">حدد موقعي الحالي</button>
+    <p class="error-message" id="errorMessage">رقم القاعة غير صحيح. حاول مرة أخرى.</p>
+  </div>
+  <div class="history">
+    <p>القاعات الأخيرة: <span id="recentRooms">لا يوجد</span></p>
+  </div>
 
-    <script>
-        const roomInput = document.getElementById('roomInput');
-        const roomList = document.getElementById('roomList');
-        const recentRoomsSpan = document.getElementById('recentRooms');
-        const mapContainer = document.getElementById('mapContainer');
-        const pin = document.getElementById('pin');
-        const errorMessage = document.getElementById('errorMessage');
-        const maxRecentRooms = 3;
-        const title = document.getElementById('title');
+  <!-- تذييل الصفحة لحقوق الملكية -->
+  <footer>
+      حقوق النشر © 2025 - جميع الحقوق محفوظة للطالب فهد القحطاني
+  </footer>
 
-        // تغيير اللغة
-        function setLanguage(lang) {
-            if (lang === 'ar') {
-                document.documentElement.lang = 'ar';
-                document.documentElement.dir = 'rtl';
-                title.textContent = 'خريطة القاعات';
-                roomInput.placeholder = 'اكتب رقم القاعة أو اختر';
-                errorMessage.textContent = 'رقم القاعة غير صحيح. حاول مرة أخرى.';
-                recentRoomsSpan.textContent = 'لا يوجد';
-            } else {
-                document.documentElement.lang = 'en';
-                document.documentElement.dir = 'ltr';
-                title.textContent = 'Room Map';
-                roomInput.placeholder = 'Enter room number or choose';
-                errorMessage.textContent = 'Invalid room number. Try again.';
-                recentRoomsSpan.textContent = 'No recent rooms';
-            }
+  <script>
+    const roomInput = document.getElementById('roomInput');
+    const roomList = document.getElementById('roomList');
+    const recentRoomsSpan = document.getElementById('recentRooms');
+    const mapContainer = document.getElementById('mapContainer');
+    const pin = document.getElementById('pin');
+    const errorMessage = document.getElementById('errorMessage');
+    const maxRecentRooms = 3;
+    const title = document.getElementById('title');
+
+    // تغيير اللغة
+    function setLanguage(lang) {
+      if (lang === 'ar') {
+        document.documentElement.lang = 'ar';
+        document.documentElement.dir = 'rtl';
+        title.textContent = 'خريطة القاعات';
+        roomInput.placeholder = 'اكتب رقم القاعة أو اختر';
+        errorMessage.textContent = 'رقم القاعة غير صحيح. حاول مرة أخرى.';
+        recentRoomsSpan.textContent = 'لا يوجد';
+      } else {
+        document.documentElement.lang = 'en';
+        document.documentElement.dir = 'ltr';
+        title.textContent = 'Room Map';
+        roomInput.placeholder = 'Enter room number or choose';
+        errorMessage.textContent = 'Invalid room number. Try again.';
+        recentRoomsSpan.textContent = 'No recent rooms';
+      }
+    }
+
+    // تعبئة قائمة القاعات
+    function populateRoomList() {
+      for (const roomNumber in roomCoordinates) {
+        const option = document.createElement('option');
+        option.value = roomNumber;
+        roomList.appendChild(option);
+      }
+    }
+
+    // إعادة تعيين الخريطة
+    function resetMap() {
+      mapContainer.style.backgroundImage = "url('map-1.png')";
+      pin.style.display = 'none';
+      roomInput.value = '';
+      errorMessage.style.display = 'none';
+    }
+
+    // تحديد الموقع الحالي (محاكاة)
+    function locateMe() {
+      alert('ميزة تحديد الموقع قيد التطوير.');
+    }
+
+    // تحديث القاعات الأخيرة
+    function updateRecentRooms(roomNumber) {
+      let recentRooms = JSON.parse(localStorage.getItem('recentRooms')) || [];
+      if (!recentRooms.includes(roomNumber)) {
+        if (recentRooms.length >= maxRecentRooms) {
+          recentRooms.pop();
+        }
+        recentRooms.unshift(roomNumber);
+      }
+      localStorage.setItem('recentRooms', JSON.stringify(recentRooms));
+      displayRecentRooms();
+    }
+
+    // عرض القاعات الأخيرة
+    function displayRecentRooms() {
+      const recentRooms = JSON.parse(localStorage.getItem('recentRooms')) || [];
+      recentRoomsSpan.textContent = recentRooms.length > 0 
+          ? recentRooms.map(room => `${document.documentElement.lang === 'ar' ? 'قاعة' : 'Room'} ${room}`).join('، ')
+          : (document.documentElement.lang === 'ar' ? 'لا يوجد' : 'No recent rooms');
+    }
+
+    // تحديد القاعة
+    function locateRoom() {
+      const roomNumber = roomInput.value;
+
+      if (roomCoordinates[roomNumber]) {
+        const { x, y, floor } = roomCoordinates[roomNumber];
+
+        if (floor === 1) {
+          mapContainer.style.backgroundImage = "url('map-1.png')";
+        } else if (floor === 2) {
+          mapContainer.style.backgroundImage = "url('map-2.png')";
         }
 
-        // تعبئة قائمة القاعات
-        function populateRoomList() {
-            for (const roomNumber in roomCoordinates) {
-                const option = document.createElement('option');
-                option.value = roomNumber;
-                roomList.appendChild(option);
-            }
-        }
+        pin.style.left = `${x}%`;
+        pin.style.top = `${y}%`;
+        pin.style.display = 'block';
 
-        // إعادة تعيين الخريطة
-        function resetMap() {
-            mapContainer.style.backgroundImage = "url('map-1.png')";
-            pin.style.display = 'none';
-            roomInput.value = '';
-            errorMessage.style.display = 'none';
-        }
+        errorMessage.style.display = 'none';
+        updateRecentRooms(roomNumber);
+      } else {
+        errorMessage.style.display = 'block';
+        pin.style.display = 'none';
+      }
+    }
 
-        // تحديد الموقع الحالي (محاكاة)
-        function locateMe() {
-            alert('ميزة تحديد الموقع قيد التطوير.');
-        }
-
-        // تحديث القاعات الأخيرة
-        function updateRecentRooms(roomNumber) {
-            let recentRooms = JSON.parse(localStorage.getItem('recentRooms')) || [];
-            if (!recentRooms.includes(roomNumber)) {
-                if (recentRooms.length >= maxRecentRooms) {
-                    recentRooms.pop();
-                }
-                recentRooms.unshift(roomNumber);
-            }
-            localStorage.setItem('recentRooms', JSON.stringify(recentRooms));
-            displayRecentRooms();
-        }
-
-        // عرض القاعات الأخيرة
-        function displayRecentRooms() {
-            const recentRooms = JSON.parse(localStorage.getItem('recentRooms')) || [];
-            recentRoomsSpan.textContent = recentRooms.length > 0 
-                ? recentRooms.map(room => `${document.documentElement.lang === 'ar' ? 'قاعة' : 'Room'} ${room}`).join('، ')
-                : (document.documentElement.lang === 'ar' ? 'لا يوجد' : 'No recent rooms');
-        }
-
-        // تحديد القاعة
-        function locateRoom() {
-            const roomNumber = roomInput.value;
-
-            if (roomCoordinates[roomNumber]) {
-                const { x, y, floor } = roomCoordinates[roomNumber];
-
-                if (floor === 1) {
-                    mapContainer.style.backgroundImage = "url('map-1.png')";
-                } else if (floor === 2) {
-                    mapContainer.style.backgroundImage = "url('map-2.png')";
-                }
-
-                pin.style.left = `${x}%`;
-                pin.style.top = `${y}%`;
-                pin.style.display = 'block';
-
-                errorMessage.style.display = 'none';
-                updateRecentRooms(roomNumber);
-            } else {
-                errorMessage.style.display = 'block';
-                pin.style.display = 'none';
-            }
-        }
-
-        window.onload = () => {
-            populateRoomList();
-            displayRecentRooms();
-        };
-    </script>
+    window.onload = () => {
+      populateRoomList();
+      displayRecentRooms();
+    };
+  </script>
 </body>
 </html>
