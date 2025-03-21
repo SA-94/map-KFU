@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>خريطة القاعات</title>
+  <title>خريطة القاعات مع تدوير حسب اتجاه الجهاز</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <style>
     * {
@@ -21,7 +21,6 @@
       position: relative;
       overflow: hidden;
     }
-    /* الشريط العلوي */
     .topbar {
       background-color: #007BFF;
       color: #fff;
@@ -35,7 +34,6 @@
     .topbar h1 {
       font-size: 20px;
     }
-    /* زر القائمة المكون من ثلاثة مستطيلات */
     .menu-toggle {
       position: absolute;
       right: 20px;
@@ -53,7 +51,6 @@
       background-color: #fff;
       border-radius: 2px;
     }
-    /* الشريط الجانبي مع تأثير الدوران 360 */
     .sidebar {
       position: fixed;
       top: 0;
@@ -74,7 +71,6 @@
       margin-bottom: 20px;
       color: #007BFF;
     }
-    /* تكبير أيقونة الإغلاق (X) */
     .close-btn {
       position: absolute;
       top: 10px;
@@ -83,13 +79,11 @@
       font-size: 30px;
       color: #000;
     }
-    /* المحتوى الرئيسي */
     .content {
       flex: 1;
       padding: 20px;
       overflow: auto;
     }
-    /* حاوية الخريطة */
     .map-container {
       position: relative;
       width: 90%;
@@ -108,8 +102,8 @@
       width: 100%;
       height: 100%;
       transform-origin: top left;
+      transition: transform 0.1s ease-out;
     }
-    /* صورة الخريطة */
     #mapImage {
       width: 100%;
       height: auto;
@@ -151,7 +145,6 @@
       color: red;
       display: none;
     }
-    /* الفوتر الثابت */
     .footer {
       background-color: #007BFF;
       color: #fff;
@@ -189,7 +182,6 @@
   <!-- المحتوى الرئيسي -->
   <div class="content">
     <div class="map-container" id="mapContainer">
-      <!-- الحاوية الداخلية التي تتحرك مع الإيماءات -->
       <div id="mapWrapper">
         <img id="mapImage" src="map-1.png" alt="Map">
         <div id="pin"></div>
@@ -205,7 +197,6 @@
     </div>
   </div>
 
-  <!-- الفوتر الثابت -->
   <div class="footer">
     جميع الحقوق محفوظة  © للطالب فهد القحطاني
   </div>
@@ -213,7 +204,7 @@
   <!-- تحميل ملف القاعات الخارجي -->
   <script src="rooms.js"></script>
   <script>
-    // التأكد من تحميل بيانات القاعات
+    // تأكد من تحميل بيانات القاعات
     if (typeof roomCoordinates === 'undefined') {
       console.error("لم يتم تحميل بيانات القاعات من rooms.js");
     }
@@ -235,15 +226,23 @@
       }
     }
 
-    // متغيرات التكبير/التصغير والتحريك
+    // متغيرات التكبير/التصغير والتحريك والدوران
     let currentScale = 1;
     let currentTranslate = { x: 0, y: 0 };
     let initialTranslate = { x: 0, y: 0 };
     let initialDistance = 0;
     let initialScale = 1;
     let startTouches = [];
+    let initialCenter = { x: 0, y: 0 };
 
-    // دالة لضبط التحويل مع تقييد الحدود
+    // هنا نحدد تعويض زاوية بحيث يكون المبنى في الواقع (الذي يكون متجه شرق مع ميل شمال بسيط)
+    // على سبيل المثال، إذا كانت القيمة المطلوبة 80 درجة، يمكنك تعديلها حسب الحاجة.
+    const rotationOffset = 80; 
+
+    // متغير الدوران الحالي
+    let currentRotation = 0;
+
+    // دالة لضبط التحويل مع دمج التكبير والسحب والدوران وتقييد الحدود
     function setTransform() {
       const containerWidth = mapContainer.clientWidth;
       const containerHeight = mapContainer.clientHeight;
@@ -266,7 +265,8 @@
         currentTranslate.y = (containerHeight - scaledHeight) / 2;
       }
       
-      mapWrapper.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${currentScale})`;
+      // تطبيق التحويل: ترجمة، تكبير، ودوران مع تعويض بحيث تبقى الخريطة موجهة بشكل صحيح
+      mapWrapper.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${currentScale}) rotate(${currentRotation + rotationOffset}deg)`;
     }
 
     // أحداث اللمس
@@ -302,7 +302,7 @@
         currentTranslate.y = initialTranslate.y + dy;
         setTransform();
       } else if (e.touches.length === 2 && startTouches.length === 2) {
-        // عملية التكبير/التصغير (Pinch Zoom) مع تعديل الإزاحة ليكون مركز التكبير ثابتًا
+        // عملية التكبير/التصغير (Pinch Zoom)
         let newTouches = [
           { x: e.touches[0].clientX, y: e.touches[0].clientY },
           { x: e.touches[1].clientX, y: e.touches[1].clientY }
@@ -313,14 +313,14 @@
         );
         let newScale = initialScale * (newDistance / initialDistance);
         
-        // حساب مركز التكبير الجديد
+        // حساب مركز التكبير الجديد بالنسبة للحاوية
         const rect = mapContainer.getBoundingClientRect();
         const newCenter = {
           x: ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left,
           y: ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top
         };
         
-        // تعديل الإزاحة بحيث يظل مركز التكبير ثابتًا
+        // تعديل الإزاحة بحيث يظل مركز التكبير ثابتاً
         currentTranslate.x = initialTranslate.x - ((newScale - initialScale) / initialScale) * initialCenter.x;
         currentTranslate.y = initialTranslate.y - ((newScale - initialScale) / initialScale) * initialCenter.y;
         currentScale = newScale;
@@ -336,30 +336,40 @@
       }
     });
 
+    // استخدام DeviceOrientationEvent لتحديث الدوران بحيث تظل الخريطة موجهة وفق الواقع
+    window.addEventListener('deviceorientation', function(e) {
+      if (e.alpha !== null) {
+        // e.alpha تعطي الزاوية حول المحور العمودي (0-360)
+        // نستخدم القيمة السالبة مع تعويض rotationOffset ليكون التوجيه ثابتاً
+        currentRotation = -e.alpha;
+        setTransform();
+      }
+    });
+
     // إعادة تعيين الخريطة
     function resetMap() {
       mapImage.src = "map-1.png";
       currentScale = 1;
       currentTranslate = { x: 0, y: 0 };
       initialTranslate = { x: 0, y: 0 };
+      currentRotation = 0;
       setTransform();
       pin.style.display = 'none';
       roomInput.value = '';
       errorMessage.style.display = 'none';
     }
 
-    // تحديد القاعة وعرض موقع الدبوس (يُحسب بالنسبة للخريطة الأصلية)
+    // تحديد القاعة وعرض موقع الدبوس (حسب النسب الأصلية)
     function locateRoom() {
       const roomNumber = roomInput.value;
       if (roomCoordinates[roomNumber]) {
         const { x, y, floor } = roomCoordinates[roomNumber];
-        // تغيير الصورة حسب الطابق
         if (floor === 1) {
           mapImage.src = "map-1.png";
         } else if (floor === 2) {
           mapImage.src = "map-2.png";
         }
-        // حساب موقع الدبوس كنسبة مئوية بناءً على الأبعاد الأصلية (901×988)
+        // حساب موقع الدبوس كنسبة مئوية
         const xPercent = (x / 901) * 100;
         const yPercent = (y / 988) * 100;
         pin.style.left = `${xPercent}%`;
