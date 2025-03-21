@@ -100,7 +100,7 @@
       touch-action: none;
       aspect-ratio: 901 / 988;
     }
-    /* حاوية داخلية تشمل صورة الخريطة والدبوس */
+    /* الحاوية الداخلية التي تشمل الصورة والدبوس */
     #mapWrapper {
       position: absolute;
       top: 0;
@@ -189,7 +189,7 @@
   <!-- المحتوى الرئيسي -->
   <div class="content">
     <div class="map-container" id="mapContainer">
-      <!-- الحاوية الداخلية التي ستحركها الإيماءات -->
+      <!-- الحاوية الداخلية التي تتحرك مع الإيماءات -->
       <div id="mapWrapper">
         <img id="mapImage" src="map-1.png" alt="Map">
         <div id="pin"></div>
@@ -243,7 +243,29 @@
     let initialScale = 1;
     let startTouches = [];
 
+    // دالة لضبط التحويل مع تقييد الحدود
     function setTransform() {
+      const containerWidth = mapContainer.clientWidth;
+      const containerHeight = mapContainer.clientHeight;
+      const scaledWidth = containerWidth * currentScale;
+      const scaledHeight = containerHeight * currentScale;
+      
+      // تحديد الحدود الأفقية
+      if (scaledWidth > containerWidth) {
+        if (currentTranslate.x > 0) currentTranslate.x = 0;
+        if (currentTranslate.x < containerWidth - scaledWidth) currentTranslate.x = containerWidth - scaledWidth;
+      } else {
+        currentTranslate.x = (containerWidth - scaledWidth) / 2;
+      }
+      
+      // تحديد الحدود العمودية
+      if (scaledHeight > containerHeight) {
+        if (currentTranslate.y > 0) currentTranslate.y = 0;
+        if (currentTranslate.y < containerHeight - scaledHeight) currentTranslate.y = containerHeight - scaledHeight;
+      } else {
+        currentTranslate.y = (containerHeight - scaledHeight) / 2;
+      }
+      
       mapWrapper.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${currentScale})`;
     }
 
