@@ -4,184 +4,227 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>خريطة القاعات</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Cairo', sans-serif;
+    * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
-      text-align: center;
+      touch-action: none;
+    }
+    body {
+      font-family: 'Cairo', sans-serif;
       background-color: #f0f0f0;
-      color: #333;
-      line-height: 1.6;
-      /* منع النسخ والسرقة */
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      position: relative;
+      overflow: hidden;
     }
-
-    h1 {
+    /* الشريط العلوي */
+    .topbar {
+      background-color: #007BFF;
+      color: #fff;
+      padding: 15px;
+      text-align: center;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .topbar h1 {
+      font-size: 20px;
+    }
+    /* زر القائمة المكون من ثلاثة مستطيلات */
+    .menu-toggle {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 20px;
+      height: 20px;
+    }
+    .menu-toggle .bar {
+      height: 4px;
+      background-color: #fff;
+      border-radius: 2px;
+    }
+    /* الشريط الجانبي مع تأثير الدوران 360 */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 250px;
+      height: 100%;
+      background-color: #ffffff;
+      box-shadow: -2px 0 5px rgba(0,0,0,0.3);
+      padding: 20px;
+      z-index: 1000;
+      transform: translateX(100%) rotate(-180deg);
+      transition: transform 0.6s ease;
+    }
+    .sidebar.active {
+      transform: translateX(0) rotate(0deg);
+    }
+    .sidebar h2 {
+      margin-bottom: 20px;
       color: #007BFF;
-      margin-top: 20px;
     }
-
+    /* تكبير أيقونة الإغلاق (X) */
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      left: 20px;
+      cursor: pointer;
+      font-size: 30px;
+      color: #000;
+    }
+    /* المحتوى الرئيسي */
+    .content {
+      flex: 1;
+      padding: 20px;
+      overflow: auto;
+    }
+    /* حاوية الخريطة */
     .map-container {
       position: relative;
       width: 90%;
       max-width: 901px;
-      aspect-ratio: 901 / 988;
-      background-size: contain;
-      background-repeat: no-repeat;
-      background-position: center;
       margin: 20px auto;
-      border: 10px solid #007BFF;
-      border-radius: 12px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.1);
-      background-image: url('map-1.png'); /* الصورة الافتراضية */
+      border: 5px solid #007BFF;
+      overflow: hidden;
+      touch-action: none;
+      aspect-ratio: 901 / 988;
     }
-
+    /* حاوية داخلية تشمل صورة الخريطة والدبوس */
+    #mapWrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform-origin: top left;
+    }
+    /* صورة الخريطة */
+    #mapImage {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    /* الدبوس */
     #pin {
       position: absolute;
-      width: 4vw;
-      height: 4vw;
-      max-width: 12px;
-      max-height: 12px;
+      width: 12px;
+      height: 12px;
       background-color: red;
       border-radius: 50%;
       display: none;
       transform: translate(-50%, -50%);
-      transition: all 0.5s ease; /* تأثيرات الحركة */
-      /* تأثير وميض للنقطة */
       animation: blink 1s infinite;
+      z-index: 10;
     }
-
     @keyframes blink {
-      0% { opacity: 1; }
+      0%, 100% { opacity: 1; }
       50% { opacity: 0; }
-      100% { opacity: 1; }
     }
-
     .form-container {
       margin: 20px auto;
+      text-align: center;
     }
-
-    .form-container input, .form-container button {
-      padding: 12px;
+    input, button {
+      padding: 10px;
       margin: 5px;
-      font-size: 18px;
-      width: 90%;
-      max-width: 400px;
+      font-size: 16px;
       border: 2px solid #007BFF;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      border-radius: 5px;
     }
-
     button {
       background-color: #007BFF;
-      color: white;
+      color: #fff;
       cursor: pointer;
     }
-
-    button:hover {
-      background-color: #0056b3;
-    }
-
     .error-message {
       color: red;
-      font-size: 14px;
-      margin-top: 5px;
-      display: none; /* مخفي افتراضيًا */
+      display: none;
     }
-
-    .history {
-      margin-top: 20px;
-      font-size: 16px;
-      color: #555;
-    }
-
-    .language-toggle {
-      margin: 20px auto;
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-    }
-
-    @media (max-width: 600px) {
-      #pin {
-        width: 6vw;
-        height: 6vw;
-      }
-    }
-
-    body img {
-      pointer-events: none;
-    }
-
-    /* تنسيق التذييل */
-    footer {
-      margin-top: 40px;
-      padding: 10px;
+    /* الفوتر الثابت */
+    .footer {
       background-color: #007BFF;
       color: #fff;
+      text-align: center;
+      padding: 10px;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
       font-size: 14px;
     }
   </style>
-  <script src="rooms.js"></script>
 </head>
-<body oncontextmenu="return false;">
-  <h1 id="title">خريطة القاعات</h1>
-  <div class="language-toggle">
-    <button onclick="setLanguage('ar')">العربية</button>
-    <button onclick="setLanguage('en')">English</button>
-  </div>
-  <div class="map-container" id="mapContainer">
-    <div id="pin"></div>
-  </div>
-  <div class="form-container">
-    <input type="text" id="roomInput" list="roomList" placeholder="اكتب رقم القاعة أو اختر">
-    <datalist id="roomList"></datalist>
-    <button onclick="locateRoom()">ابحث</button>
-    <button onclick="resetMap()">إعادة تعيين</button>
-    <button onclick="locateMe()">حدد موقعي الحالي</button>
-    <p class="error-message" id="errorMessage">رقم القاعة غير صحيح. حاول مرة أخرى.</p>
-  </div>
-  <div class="history">
-    <p>القاعات الأخيرة: <span id="recentRooms">لا يوجد</span></p>
+<body>
+  <!-- الشريط العلوي -->
+  <div class="topbar">
+    <h1>خريطة القاعات</h1>
+    <div class="menu-toggle" onclick="toggleSidebar()">
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+    </div>
   </div>
 
-  <!-- تذييل الصفحة لحقوق الملكية -->
-  <footer>
-      حقوق النشر © 2025 - جميع الحقوق محفوظة للطالب فهد القحطاني
-  </footer>
+  <!-- الشريط الجانبي -->
+  <div class="sidebar" id="sidebar">
+    <div class="close-btn" onclick="toggleSidebar()">×</div>
+    <h2>قائمة الخيارات</h2>
+    <ul>
+      <li><a href="#">الرئيسية</a></li>
+      <li><a href="#">حول</a></li>
+      <li><a href="#">اتصل بنا</a></li>
+    </ul>
+  </div>
 
+  <!-- المحتوى الرئيسي -->
+  <div class="content">
+    <div class="map-container" id="mapContainer">
+      <!-- الحاوية الداخلية التي ستحركها الإيماءات -->
+      <div id="mapWrapper">
+        <img id="mapImage" src="map-1.png" alt="Map">
+        <div id="pin"></div>
+      </div>
+    </div>
+
+    <div class="form-container">
+      <input type="text" id="roomInput" list="roomList" placeholder="اكتب رقم القاعة">
+      <datalist id="roomList"></datalist>
+      <button onclick="locateRoom()">ابحث</button>
+      <button onclick="resetMap()">إعادة تعيين</button>
+      <p class="error-message" id="errorMessage">رقم القاعة غير صحيح.</p>
+    </div>
+  </div>
+
+  <!-- الفوتر الثابت -->
+  <div class="footer">
+    جميع الحقوق محفوظة  © للطالب فهد القحطاني
+  </div>
+
+  <!-- تحميل ملف القاعات الخارجي -->
+  <script src="rooms.js"></script>
   <script>
+    // التأكد من تحميل بيانات القاعات
+    if (typeof roomCoordinates === 'undefined') {
+      console.error("لم يتم تحميل بيانات القاعات من rooms.js");
+    }
+
     const roomInput = document.getElementById('roomInput');
     const roomList = document.getElementById('roomList');
-    const recentRoomsSpan = document.getElementById('recentRooms');
     const mapContainer = document.getElementById('mapContainer');
+    const mapWrapper = document.getElementById('mapWrapper');
+    const mapImage = document.getElementById('mapImage');
     const pin = document.getElementById('pin');
     const errorMessage = document.getElementById('errorMessage');
-    const maxRecentRooms = 3;
-    const title = document.getElementById('title');
-
-    // تغيير اللغة
-    function setLanguage(lang) {
-      if (lang === 'ar') {
-        document.documentElement.lang = 'ar';
-        document.documentElement.dir = 'rtl';
-        title.textContent = 'خريطة القاعات';
-        roomInput.placeholder = 'اكتب رقم القاعة أو اختر';
-        errorMessage.textContent = 'رقم القاعة غير صحيح. حاول مرة أخرى.';
-        recentRoomsSpan.textContent = 'لا يوجد';
-      } else {
-        document.documentElement.lang = 'en';
-        document.documentElement.dir = 'ltr';
-        title.textContent = 'Room Map';
-        roomInput.placeholder = 'Enter room number or choose';
-        errorMessage.textContent = 'Invalid room number. Try again.';
-        recentRoomsSpan.textContent = 'No recent rooms';
-      }
-    }
 
     // تعبئة قائمة القاعات
     function populateRoomList() {
@@ -192,68 +235,113 @@
       }
     }
 
+    // متغيرات التكبير/التصغير والتحريك
+    let currentScale = 1;
+    let currentTranslate = { x: 0, y: 0 };
+    let initialTranslate = { x: 0, y: 0 };
+    let initialDistance = 0;
+    let initialScale = 1;
+    let startTouches = [];
+
+    function setTransform() {
+      mapWrapper.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${currentScale})`;
+    }
+
+    // أحداث اللمس
+    mapContainer.addEventListener('touchstart', function(e) {
+      if (e.touches.length === 1) {
+        startTouches = [{ x: e.touches[0].clientX, y: e.touches[0].clientY }];
+      } else if (e.touches.length === 2) {
+        startTouches = [
+          { x: e.touches[0].clientX, y: e.touches[0].clientY },
+          { x: e.touches[1].clientX, y: e.touches[1].clientY }
+        ];
+        initialDistance = Math.hypot(
+          startTouches[0].x - startTouches[1].x,
+          startTouches[0].y - startTouches[1].y
+        );
+        initialScale = currentScale;
+      }
+    });
+
+    mapContainer.addEventListener('touchmove', function(e) {
+      e.preventDefault();
+      if (e.touches.length === 1 && startTouches.length === 1) {
+        // سحب (Pan)
+        let dx = e.touches[0].clientX - startTouches[0].x;
+        let dy = e.touches[0].clientY - startTouches[0].y;
+        currentTranslate.x = initialTranslate.x + dx;
+        currentTranslate.y = initialTranslate.y + dy;
+        setTransform();
+      } else if (e.touches.length === 2 && startTouches.length === 2) {
+        // تكبير/تصغير (Pinch Zoom)
+        let newTouches = [
+          { x: e.touches[0].clientX, y: e.touches[0].clientY },
+          { x: e.touches[1].clientX, y: e.touches[1].clientY }
+        ];
+        let newDistance = Math.hypot(
+          newTouches[0].x - newTouches[1].x,
+          newTouches[0].y - newTouches[1].y
+        );
+        currentScale = initialScale * (newDistance / initialDistance);
+        setTransform();
+      }
+    });
+
+    mapContainer.addEventListener('touchend', function(e) {
+      if (e.touches.length === 0) {
+        initialTranslate.x = currentTranslate.x;
+        initialTranslate.y = currentTranslate.y;
+        startTouches = [];
+      }
+    });
+
     // إعادة تعيين الخريطة
     function resetMap() {
-      mapContainer.style.backgroundImage = "url('map-1.png')";
+      mapImage.src = "map-1.png";
+      currentScale = 1;
+      currentTranslate = { x: 0, y: 0 };
+      initialTranslate = { x: 0, y: 0 };
+      setTransform();
       pin.style.display = 'none';
       roomInput.value = '';
       errorMessage.style.display = 'none';
     }
 
-    // تحديد الموقع الحالي (محاكاة)
-    function locateMe() {
-      alert('ميزة تحديد الموقع قيد التطوير.');
-    }
-
-    // تحديث القاعات الأخيرة
-    function updateRecentRooms(roomNumber) {
-      let recentRooms = JSON.parse(localStorage.getItem('recentRooms')) || [];
-      if (!recentRooms.includes(roomNumber)) {
-        if (recentRooms.length >= maxRecentRooms) {
-          recentRooms.pop();
-        }
-        recentRooms.unshift(roomNumber);
-      }
-      localStorage.setItem('recentRooms', JSON.stringify(recentRooms));
-      displayRecentRooms();
-    }
-
-    // عرض القاعات الأخيرة
-    function displayRecentRooms() {
-      const recentRooms = JSON.parse(localStorage.getItem('recentRooms')) || [];
-      recentRoomsSpan.textContent = recentRooms.length > 0 
-          ? recentRooms.map(room => `${document.documentElement.lang === 'ar' ? 'قاعة' : 'Room'} ${room}`).join('، ')
-          : (document.documentElement.lang === 'ar' ? 'لا يوجد' : 'No recent rooms');
-    }
-
-    // تحديد القاعة
+    // تحديد القاعة وعرض موقع الدبوس (يُحسب بالنسبة للخريطة الأصلية)
     function locateRoom() {
       const roomNumber = roomInput.value;
-
       if (roomCoordinates[roomNumber]) {
         const { x, y, floor } = roomCoordinates[roomNumber];
 
+        // تغيير الصورة حسب الطابق
         if (floor === 1) {
-          mapContainer.style.backgroundImage = "url('map-1.png')";
+          mapImage.src = "map-1.png";
         } else if (floor === 2) {
-          mapContainer.style.backgroundImage = "url('map-2.png')";
+          mapImage.src = "map-2.png";
         }
 
-        pin.style.left = `${x}%`;
-        pin.style.top = `${y}%`;
+        // حساب موقع الدبوس كنسبة مئوية بناءً على الأبعاد الأصلية (901×988)
+        const xPercent = (x / 901) * 100;
+        const yPercent = (y / 988) * 100;
+        pin.style.left = `${xPercent}%`;
+        pin.style.top = `${yPercent}%`;
         pin.style.display = 'block';
-
         errorMessage.style.display = 'none';
-        updateRecentRooms(roomNumber);
       } else {
         errorMessage.style.display = 'block';
         pin.style.display = 'none';
       }
     }
 
+    // تفعيل وإخفاء الشريط الجانبي
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('active');
+    }
+
     window.onload = () => {
       populateRoomList();
-      displayRecentRooms();
     };
   </script>
 </body>
