@@ -94,22 +94,21 @@
       touch-action: none;
       aspect-ratio: 901 / 988;
     }
-    /* الحاوية الداخلية التي تشمل الصورة والدبوس */
+    /* تعديل محور التحويل إلى المركز */
     #mapWrapper {
       position: absolute;
-      top: 0;
-      left: 0;
+      top: 50%;
+      left: 50%;
       width: 100%;
       height: 100%;
-      transform-origin: top left;
-      transition: transform 0.1s ease-out;
+      transform-origin: center center;
+      /* سنقوم بتعديل التحويل بشكل مركزي */
     }
     #mapImage {
       width: 100%;
       height: auto;
       display: block;
     }
-    /* الدبوس */
     #pin {
       position: absolute;
       width: 12px;
@@ -182,6 +181,7 @@
   <!-- المحتوى الرئيسي -->
   <div class="content">
     <div class="map-container" id="mapContainer">
+      <!-- حاوية داخلية لتطبيق التحويلات: الآن تُرتب بحيث يكون المركز نقطة التحويل -->
       <div id="mapWrapper">
         <img id="mapImage" src="map-1.png" alt="Map">
         <div id="pin"></div>
@@ -204,7 +204,7 @@
   <!-- تحميل ملف القاعات الخارجي -->
   <script src="rooms.js"></script>
   <script>
-    // تأكد من تحميل بيانات القاعات
+    // التأكد من تحميل بيانات القاعات
     if (typeof roomCoordinates === 'undefined') {
       console.error("لم يتم تحميل بيانات القاعات من rooms.js");
     }
@@ -235,11 +235,11 @@
     let startTouches = [];
     let initialCenter = { x: 0, y: 0 };
 
-    // هنا نحدد تعويض زاوية بحيث يكون المبنى في الواقع (الذي يكون متجه شرق مع ميل شمال بسيط)
-    // على سبيل المثال، إذا كانت القيمة المطلوبة 80 درجة، يمكنك تعديلها حسب الحاجة.
-    const rotationOffset = 80; 
+    // تعويض زاوية الدوران لتصحيح اتجاه المبنى:
+    // بما أن رأس المبنى (الواجهة الرئيسية) موجود في الشرق حسب خرائط جوجل،
+    // نحتاج لتدوير الخريطة بحيث يصبح الشرق في الأعلى، أي تدوير -90 درجة.
+    const rotationOffset = -90;
 
-    // متغير الدوران الحالي
     let currentRotation = 0;
 
     // دالة لضبط التحويل مع دمج التكبير والسحب والدوران وتقييد الحدود
@@ -265,7 +265,8 @@
         currentTranslate.y = (containerHeight - scaledHeight) / 2;
       }
       
-      // تطبيق التحويل: ترجمة، تكبير، ودوران مع تعويض بحيث تبقى الخريطة موجهة بشكل صحيح
+      // تطبيق التحويل: ترجمة، تكبير، ودوران
+      // نظرًا لأن محور التحويل أصبح المركز (center center)، فإننا نضيف التعويض للدوران
       mapWrapper.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${currentScale}) rotate(${currentRotation + rotationOffset}deg)`;
     }
 
@@ -340,7 +341,7 @@
     window.addEventListener('deviceorientation', function(e) {
       if (e.alpha !== null) {
         // e.alpha تعطي الزاوية حول المحور العمودي (0-360)
-        // نستخدم القيمة السالبة مع تعويض rotationOffset ليكون التوجيه ثابتاً
+        // نستخدم القيمة السالبة مع التعويض
         currentRotation = -e.alpha;
         setTransform();
       }
@@ -359,7 +360,7 @@
       errorMessage.style.display = 'none';
     }
 
-    // تحديد القاعة وعرض موقع الدبوس (حسب النسب الأصلية)
+    // تحديد القاعة وعرض موقع الدبوس (يُحسب بالنسبة للخريطة الأصلية)
     function locateRoom() {
       const roomNumber = roomInput.value;
       if (roomCoordinates[roomNumber]) {
@@ -369,7 +370,7 @@
         } else if (floor === 2) {
           mapImage.src = "map-2.png";
         }
-        // حساب موقع الدبوس كنسبة مئوية
+        // حساب موقع الدبوس كنسبة مئوية بناءً على الأبعاد الأصلية (901×988)
         const xPercent = (x / 901) * 100;
         const yPercent = (y / 988) * 100;
         pin.style.left = `${xPercent}%`;
