@@ -512,13 +512,14 @@
       }
     });
 
-    // استخدام Device Orientation لتدوير مؤشر المستخدم بناءً على اتجاه الجهاز
-    window.addEventListener('deviceorientation', function(e) {
-      if (userMarker.style.display === 'block') {
-        // e.alpha يمثل الاتجاه بالنسبة للشمال
-        userMarker.style.transform = `translate(-50%, -50%) rotate(${e.alpha}deg)`;
-      }
-    });
+window.addEventListener('deviceorientation', function(e) {
+  if (userMarker.style.display === 'block') {
+    // e.alpha يمثل الزاوية بالنسبة للشمال، نطرح 90 درجة للتصحيح.
+    const rotation = e.alpha - 90;
+    userMarker.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+  }
+});
+
 
     // تفعيل وإخفاء الشريط الجانبي
     function toggleSidebar() {
