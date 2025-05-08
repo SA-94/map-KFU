@@ -2,19 +2,21 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>خريطة القاعات - النسخة المحسنة</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Tooltip إرشادي -->
+  <!-- تولتيب يظهر مرة واحدة -->
   <div class="tooltip" id="tooltip">اسحب للخريطة، واستخدم التكبير/التصغير باللمس</div>
   
-  <!-- الشريط العلوي -->
+  <!-- شريط علوي -->
   <header class="topbar" role="banner">
+    <button id="theme-toggle" class="theme-btn" aria-label="تبديل الوضع">🌙</button>
     <h1>خريطة القاعات</h1>
-    <div class="menu-toggle" tabindex="0" role="button" aria-label="فتح القائمة" onclick="toggleSidebar()" onkeydown="if(event.key==='Enter'){toggleSidebar();}">
+    <div class="menu-toggle" tabindex="0" role="button" aria-label="فتح القائمة"
+         onclick="toggleSidebar()" onkeydown="if(event.key==='Enter') toggleSidebar()">
       <div class="bar"></div>
       <div class="bar"></div>
       <div class="bar"></div>
@@ -23,7 +25,8 @@
 
   <!-- الشريط الجانبي -->
   <nav class="sidebar" id="sidebar" aria-label="قائمة الخيارات">
-    <div class="close-btn" role="button" tabindex="0" aria-label="إغلاق القائمة" onclick="toggleSidebar()" onkeydown="if(event.key==='Enter'){toggleSidebar();}">×</div>
+    <div class="close-btn" role="button" tabindex="0" aria-label="إغلاق القائمة"
+         onclick="toggleSidebar()" onkeydown="if(event.key==='Enter') toggleSidebar()">×</div>
     <h2>قائمة الخيارات</h2>
     <ul>
       <li><a href="#" tabindex="0">الرئيسية</a></li>
@@ -55,7 +58,7 @@
     جميع الحقوق محفوظة © للطالب فهد القحطاني
   </footer>
 
-  <!-- ربط السكريبتات -->
+  <!-- سكريبتات -->
   <script src="rooms.js"></script>
   <script src="script.js"></script>
 </body>
