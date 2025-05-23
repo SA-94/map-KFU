@@ -1,65 +1,57 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>خريطة القاعات - النسخة المحسنة</title>
+  <title>خريطة القاعات</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- تولتيب يظهر مرة واحدة -->
   <div class="tooltip" id="tooltip">اسحب للخريطة، واستخدم التكبير/التصغير باللمس</div>
-  
-  <!-- شريط علوي -->
-  <header class="topbar" role="banner">
-    <button id="theme-toggle" class="theme-btn" aria-label="تبديل الوضع">🌙</button>
+
+  <header class="topbar">
+    <button id="theme-toggle" class="theme-btn">🌙</button>
     <h1>خريطة القاعات</h1>
-    <div class="menu-toggle" tabindex="0" role="button" aria-label="فتح القائمة"
-         onclick="toggleSidebar()" onkeydown="if(event.key==='Enter') toggleSidebar()">
-      <div class="bar"></div>
-      <div class="bar"></div>
-      <div class="bar"></div>
+    <div class="menu-toggle" onclick="toggleSidebar()">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
     </div>
   </header>
 
-  <!-- الشريط الجانبي -->
-  <nav class="sidebar" id="sidebar" aria-label="قائمة الخيارات">
-    <div class="close-btn" role="button" tabindex="0" aria-label="إغلاق القائمة"
-         onclick="toggleSidebar()" onkeydown="if(event.key==='Enter') toggleSidebar()">×</div>
-    <h2>قائمة الخيارات</h2>
+  <nav class="sidebar" id="sidebar">
+    <div class="close-btn" onclick="toggleSidebar()">×</div>
+    <h2>القائمة</h2>
     <ul>
-      <li><a href="#" tabindex="0">الرئيسية</a></li>
-      <li><a href="#" tabindex="0">حول</a></li>
-      <li><a href="#" tabindex="0">اتصل بنا</a></li>
+      <li><a href="#">الرئيسية</a></li>
+      <li><a href="#">حول</a></li>
+      <li><a href="#">اتصل بنا</a></li>
     </ul>
   </nav>
 
-  <!-- المحتوى الرئيسي -->
   <main class="content">
-    <div class="map-container" id="mapContainer" aria-label="الخريطة التفاعلية">
+    <div class="map-container" id="mapContainer">
       <div id="mapWrapper">
-        <img id="mapImage" src="map-1.png" alt="خريطة القاعات" loading="lazy">
-        <div id="pin" aria-hidden="true"></div>
+        <img id="mapImage" src="map-1.png" alt="خريطة القاعات">
+        <canvas id="pathCanvas"></canvas>
+        <div id="pin"></div>
+        <div id="animMarker"></div>
       </div>
     </div>
 
     <div class="form-container">
-      <input type="text" id="roomInput" list="roomList" placeholder="اكتب رقم القاعة" aria-label="بحث عن رقم القاعة">
+      <input type="text" id="roomInput" list="roomList" placeholder="اكتب رقم القاعة">
       <datalist id="roomList"></datalist>
       <button onclick="locateRoom()">ابحث</button>
       <button onclick="resetMap()">إعادة تعيين</button>
-      <p class="error-message" id="errorMessage" role="alert">يرجى إدخال أرقام صحيحة فقط.</p>
+      <p class="error-message" id="errorMessage">يرجى إدخال رقم قاعة صحيح.</p>
     </div>
   </main>
 
-  <!-- الفوتر -->
-  <footer class="footer">
-    جميع الحقوق محفوظة © للطالب فهد القحطاني
-  </footer>
+  <footer class="footer">© فهد القحطاني</footer>
 
-  <!-- سكريبتات -->
   <script src="rooms.js"></script>
+  <script src="paths.rel.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
