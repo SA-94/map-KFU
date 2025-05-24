@@ -98,6 +98,7 @@ body.dark { background-color: #111; color: #eee; }
   border-right:10px solid transparent;
   border-bottom:15px solid green;
   z-index:15;
+  transition: transform 0.1s linear;
 }
 
 .form-container {
@@ -108,7 +109,13 @@ body.dark { background-color: #111; color: #eee; }
   padding:10px; margin:5px; font-size:16px;
   border:2px solid #007BFF; border-radius:5px;
 }
-button { background:#007BFF; color:#fff; cursor:pointer; }
+button {
+  background:#007BFF; color:#fff; cursor:pointer;
+}
+button:active {
+  transform: scale(0.97);
+  background-color: #0056b3;
+}
 .error-message { color:red; display:none; }
 
 .footer {
@@ -116,4 +123,11 @@ button { background:#007BFF; color:#fff; cursor:pointer; }
   text-align:center; padding:10px;
   position:fixed; bottom:0; width:100%;
   font-size:14px;
+}
+
+/* مساعدة للعنصر المخفي صوتيًا */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); border: 0;
 }
