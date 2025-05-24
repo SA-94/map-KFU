@@ -16,6 +16,9 @@ const themeBtn     = document.getElementById('theme-toggle');
 const IMG_WIDTH  = 901;
 const IMG_HEIGHT = 988;
 
+// متغير لتخزين إطار الأنيميشن
+let animId;
+
 // === تهيئة قائمة القاعات ===
 function populateRoomList() {
   Object.keys(roomCoordinates).forEach(rn => {
@@ -44,7 +47,6 @@ themeBtn.onclick = () => {
 };
 
 // === إعادة التعيين ===
-let animId;
 function resetMap() {
   mapImage.src = 'map-1.png';
   pin.style.display = animMarker.style.display = 'none';
@@ -77,16 +79,16 @@ function clearPath() {
 // === حركة المثلث ===
 let seg = 0, t = 0, lastTs = 0;
 function startAnim(pts) {
+  cancelAnimationFrame(animId);
   seg = 0; t = 0; lastTs = 0;
   animMarker.style.display = 'block';
-  requestAnimationFrame(ts => animFrame(pts, ts));
+  animId = requestAnimationFrame(ts => animFrame(pts, ts));
 }
 function animFrame(pts, ts) {
   if (!lastTs) lastTs = ts;
   const dt = (ts - lastTs) / 1000;
   lastTs = ts;
-  const p0 = pts[seg];
-  const p1 = pts[(seg + 1) % pts.length];
+  const p0 = pts[seg], p1 = pts[(seg + 1) % pts.length];
   const dx = p1.x - p0.x, dy = p1.y - p0.y;
   const dist = Math.hypot(dx, dy), speed = 150;
   t += (speed * dt) / dist;
@@ -103,7 +105,7 @@ function animFrame(pts, ts) {
 function locateRoom() {
   const rn = roomInput.value.trim();
 
-  // تحقق من وجود القاعة في rooms.js
+  // 1) تحقق من وجود القاعة في rooms.js
   if (!roomCoordinates[rn]) {
     errorMessage.textContent = 'رقم القاعة غير موجود.';
     errorMessage.style.display = 'block';
@@ -113,24 +115,26 @@ function locateRoom() {
     return;
   }
 
-  // القاعة موجودة
+  // 2) القاعة موجودة: نظف الأخطاء وأجهز الخريطة
   errorMessage.style.display = 'none';
   const { x, y, floor } = roomCoordinates[rn];
-  mapImage.src = floor === 1 ? 'map-1.png' : 'map-2.png';
+  if (mapImage.src.indexOf(`map-${floor}.png`) === -1) {
+    mapImage.src = floor === 1 ? 'map-1.png' : 'map-2.png';
+  }
 
-  // حساب إحداثيات البكسل المكيّفة
+  // 3) حساب إحداثيات البكسل المكيّفة
   const W = mapContainer.clientWidth;
   const H = mapContainer.clientHeight;
   const xAbs = (x / IMG_WIDTH) * W;
   const yAbs = (y / IMG_HEIGHT) * H;
 
+  // 4) عرض الدبّوس الأحمر
   pin.style.left    = `${xAbs}px`;
   pin.style.top     = `${yAbs}px`;
   pin.style.display = 'block';
 
-  // إذا المسار موجود في pathsMap (بكسل مطلقة)
+  // 5) التعامل مع المسار إن وُجد
   if (pathsMap[rn]) {
-    // تحويل نقاط المسار من بكسل أصلي إلى مكيّف
     const absPts = pathsMap[rn].map(p => ({
       x: (p.x / IMG_WIDTH) * W,
       y: (p.y / IMG_HEIGHT) * H,
@@ -144,12 +148,22 @@ function locateRoom() {
   }
 }
 
-// الشريط الجانبي
+// === دعم الضغط على Enter للبحث ===
+roomInput.addEventListener('keypress', e => {
+  if (e.key === 'Enter') locateRoom();
+});
+
+// === إعادة تطبيق التمركز عند تغيير حجم النافذة ===
+window.addEventListener('resize', () => {
+  if (roomInput.value.trim()) locateRoom();
+});
+
+// === الشريط الجانبي ===
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('active');
 }
 
-// بدء التشغيل
+// === بدء التشغيل ===
 window.onload = () => {
   populateRoomList();
   showTooltip();
