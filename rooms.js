@@ -1,4 +1,4 @@
-const roomCoordinates = {
+window.roomCoordinates = {
     '1003': { x: 336.974, y: 826.7584, floor: 1 },
     '1004': { x: 338.95619999999997, y: 857.6827999999999, floor: 1 },
     '1011': { x: 337.9651, y: 761.0563999999999, floor: 1 },
