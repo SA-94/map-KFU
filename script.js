@@ -93,37 +93,55 @@ function clearPath(){
 // —————————————————————————————
 // تحريك السهم (animMarker) على طول النقاط
 let seg = 0, t = 0, lastTs = 0;
-function startAnim(pts){
+function easeInOut(x) {
+  // دالة تسهيل بسيطة (ease-in-out)
+  return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+}
+function startAnim(pts) {
   cancelAnimationFrame(animId);
   seg = 0; t = 0; lastTs = 0;
+  // تأكد أن السهم ظاهر دائماً
   animMarker.style.display = 'block';
+  animMarker.style.left = '-1000px'; // بداية خارج الخريطة
+  animMarker.style.top = '-1000px';
   animId = requestAnimationFrame(ts => animFrame(pts, ts));
 }
-function animFrame(pts, ts){
+function animFrame(pts, ts) {
   if (!lastTs) lastTs = ts;
   const dt = (ts - lastTs) / 1000;
   lastTs = ts;
 
-  const p0   = pts[seg];
-  const p1   = pts[(seg + 1) % pts.length];
-  const dx   = p1.x - p0.x;
-  const dy   = p1.y - p0.y;
+  // سرعة أقل وأكثر واقعية
+  const spd = 80;
+  const p0 = pts[seg];
+  const p1 = pts[seg + 1] || pts[0]; // إذا وصل للنهاية يرجع للبداية
+  const dx = p1.x - p0.x;
+  const dy = p1.y - p0.y;
   const dist = Math.hypot(dx, dy);
-  const spd  = 150; // سرعة ثابتة
 
+  // تطبيق التسهيل
   t += (spd * dt) / dist;
+  let tEase = easeInOut(Math.min(t, 1));
+
   if (t >= 1) {
-    seg = (seg + 1) % pts.length;
-    t   = 0;
+    seg++;
+    t = 0;
+    if (seg >= pts.length) {
+      seg = 0;
+    }
+    tEase = 0;
   }
 
-  const cx = p0.x + dx * t;
-  const cy = p0.y + dy * t;
-  animMarker.style.left = `${cx}px`;
-  animMarker.style.top  = `${cy}px`;
+  // تأكد أن السهم يبقى ظاهر دائماً ولا يتكرر
+  if (p0 && p1) {
+    const cx = p0.x + dx * tEase;
+    const cy = p0.y + dy * tEase;
+    animMarker.style.left = `${cx}px`;
+    animMarker.style.top = `${cy}px`;
 
-  const ang = Math.atan2(dy, dx) * 180 / Math.PI + 90;
-  animMarker.style.transform = `translate(-50%,-50%) rotate(${ang}deg)`;
+    const ang = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+    animMarker.style.transform = `translate(-50%,-50%) rotate(${ang}deg)`;
+  }
 
   animId = requestAnimationFrame(next => animFrame(pts, next));
 }
