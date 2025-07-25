@@ -150,6 +150,10 @@ function animFrame(pts, ts) {
 // دالة تحديد القاعة (input + datalist) ورسم الدبوس والمسار
 function locateRoom(){
   const rn = roomInput.value.trim();
+  // إزالة سؤال الدرج إذا كان موجود مسبقاً
+  const oldStairsDiv = document.getElementById('stairsQuestion');
+  if (oldStairsDiv) oldStairsDiv.remove();
+
   if (!roomCoordinates[rn]) {
     errorMsg.textContent = 'رقم القاعة غير موجود.';
     errorMsg.style.display = 'block';
@@ -159,6 +163,79 @@ function locateRoom(){
     return;
   }
   errorMsg.style.display = 'none';
+
+  // إذا كانت القاعة في الدور الثاني (floor: 2)
+  const room = roomCoordinates[rn];
+  if (room && room.floor === 2) {
+    // استخدم مسار الدرج أو دبوس الدرج
+    const stairsPath = pathsMap['درج'];
+    mapImage.src = 'map-1.png';
+    const W = mapContainer.clientWidth;
+    const H = mapContainer.clientHeight;
+    if (stairsPath) {
+      const absPts = stairsPath.map(p => ({
+        x: (p.x / IMG_W) * W,
+        y: (p.y / IMG_H) * H
+      }));
+      drawPath(absPts);
+      startAnim(absPts);
+      pin.style.display = 'none';
+    } else if (roomCoordinates['درج']) {
+      clearPath();
+      cancelAnimationFrame(animId);
+      // إظهار دبوس عند الدرج
+      const { x, y } = roomCoordinates['درج'];
+      const xAbs = (x / IMG_W) * W;
+      const yAbs = (y / IMG_H) * H;
+      pin.style.left    = `${xAbs}px`;
+      pin.style.top     = `${yAbs}px`;
+      pin.style.display = 'block';
+    } else {
+      clearPath();
+      cancelAnimationFrame(animId);
+      pin.style.display = 'none';
+    }
+
+    // إضافة سؤال الدرج بجانب البحث
+    const stairsDiv = document.createElement('div');
+    stairsDiv.id = 'stairsQuestion';
+    stairsDiv.style.marginTop = '10px';
+    stairsDiv.innerHTML = `<span>هل وصلت للدرج؟</span> <button id="stairsYes">نعم</button> <button id="stairsNo">لا</button>`;
+    // إضافة سؤال الدرج داخل form-container
+    const formContainer = document.querySelector('.form-container');
+    formContainer.appendChild(stairsDiv);
+
+    document.getElementById('stairsYes').onclick = function() {
+      // عند الضغط على نعم: تظهر خريطة الدور الثاني والمسار المعتاد للغرفة
+      mapImage.src = 'map-2.png';
+      stairsDiv.remove();
+      // رسم المسار المعتاد للغرفة المطلوبة
+      if (pathsMap[rn]) {
+        const absPts2 = pathsMap[rn].map(p => ({
+          x: (p.x / IMG_W) * W,
+          y: (p.y / IMG_H) * H
+        }));
+        drawPath(absPts2);
+        startAnim(absPts2);
+      } else {
+        clearPath();
+        cancelAnimationFrame(animId);
+      }
+      // إظهار دبوس الغرفة
+      const { x, y } = roomCoordinates[rn];
+      const xAbs = (x / IMG_W) * W;
+      const yAbs = (y / IMG_H) * H;
+      pin.style.left    = `${xAbs}px`;
+      pin.style.top     = `${yAbs}px`;
+      pin.style.display = 'block';
+    };
+    document.getElementById('stairsNo').onclick = function() {
+      stairsDiv.remove();
+      clearPath();
+      cancelAnimationFrame(animId);
+    };
+    return;
+  }
 
   // 1) اختيار الخريطة المناسبة بناءً على المتغيّر floor
   const { x, y, floor } = roomCoordinates[rn];
