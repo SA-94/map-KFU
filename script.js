@@ -88,6 +88,7 @@ function drawPath(pts){
 function clearPath(){
   const ctx = pathCanvas.getContext('2d');
   ctx.clearRect(0, 0, pathCanvas.width, pathCanvas.height);
+  if (typeof startAnim.stop === 'function') startAnim.stop();
 }
 
 // —————————————————————————————
@@ -100,11 +101,19 @@ function easeInOut(x) {
 function startAnim(pts) {
   cancelAnimationFrame(animId);
   seg = 0; t = 0; lastTs = 0;
-  // تأكد أن السهم ظاهر دائماً
   animMarker.style.display = 'block';
-  animMarker.style.left = '-1000px'; // بداية خارج الخريطة
+  animMarker.style.left = '-1000px';
   animMarker.style.top = '-1000px';
-  animId = requestAnimationFrame(ts => animFrame(pts, ts));
+  // حل مشكلة التوقف: استخدم متغير متحكم بالحركة
+  let running = true;
+  function loop(ts) {
+    if (!running) return;
+    animFrame(pts, ts);
+    animId = requestAnimationFrame(loop);
+  }
+  animId = requestAnimationFrame(loop);
+  // عند إعادة تعيين أو تغيير المسار، أوقف الحركة
+  startAnim.stop = () => { running = false; cancelAnimationFrame(animId); };
 }
 function animFrame(pts, ts) {
   if (!lastTs) lastTs = ts;
@@ -112,7 +121,7 @@ function animFrame(pts, ts) {
   lastTs = ts;
 
   // سرعة أقل وأكثر واقعية
-  const spd = 80;
+  const spd = 40; // سرعة أبطأ للمثلث
   const p0 = pts[seg];
   const p1 = pts[seg + 1] || pts[0]; // إذا وصل للنهاية يرجع للبداية
   const dx = p1.x - p0.x;
@@ -154,19 +163,22 @@ function locateRoom(){
   const oldStairsDiv = document.getElementById('stairsQuestion');
   if (oldStairsDiv) oldStairsDiv.remove();
 
+  // منطق الدور: إذا القاعة فوق (2000 وفوق) يبقى في الدور الثاني، إذا كنت في الدور الأول يرسم مسار الدرج
+  const isUpperRoom = /^2\d{3,}$/.test(rn);
+  const currentFloor = mapImage.src.indexOf('map-2.png') !== -1 ? 2 : 1;
+
   if (!roomCoordinates[rn]) {
     errorMsg.textContent = 'رقم القاعة غير موجود.';
     errorMsg.style.display = 'block';
     pin.style.display = animMarker.style.display = 'none';
     clearPath();
-    cancelAnimationFrame(animId);
     return;
   }
   errorMsg.style.display = 'none';
 
-  // إذا كانت القاعة في الدور الثاني (floor: 2)
   const room = roomCoordinates[rn];
-  if (room && room.floor === 2) {
+  // إذا القاعة فوق وكنت في الدور الأول يرسم مسار الدرج
+  if (isUpperRoom && currentFloor === 1) {
     // استخدم مسار الدرج أو دبوس الدرج
     const stairsPath = pathsMap['درج'];
     mapImage.src = 'map-1.png';
@@ -182,7 +194,7 @@ function locateRoom(){
       pin.style.display = 'none';
     } else if (roomCoordinates['درج']) {
       clearPath();
-      cancelAnimationFrame(animId);
+      if (typeof startAnim.stop === 'function') startAnim.stop();
       // إظهار دبوس عند الدرج
       const { x, y } = roomCoordinates['درج'];
       const xAbs = (x / IMG_W) * W;
@@ -192,7 +204,7 @@ function locateRoom(){
       pin.style.display = 'block';
     } else {
       clearPath();
-      cancelAnimationFrame(animId);
+      if (typeof startAnim.stop === 'function') startAnim.stop();
       pin.style.display = 'none';
     }
 
@@ -219,7 +231,7 @@ function locateRoom(){
         startAnim(absPts2);
       } else {
         clearPath();
-        cancelAnimationFrame(animId);
+        if (typeof startAnim.stop === 'function') startAnim.stop();
       }
       // إظهار دبوس الغرفة
       const { x, y } = roomCoordinates[rn];
@@ -232,7 +244,104 @@ function locateRoom(){
     document.getElementById('stairsNo').onclick = function() {
       stairsDiv.remove();
       clearPath();
-      cancelAnimationFrame(animId);
+      if (typeof startAnim.stop === 'function') startAnim.stop();
+    };
+    return;
+  }
+
+  // إذا القاعة فوق وكنت بالفعل في الدور الثاني يرسم المسار مباشرة
+  if (isUpperRoom && currentFloor === 2) {
+    mapImage.src = 'map-2.png';
+    const { x, y } = roomCoordinates[rn];
+    const W = mapContainer.clientWidth;
+    const H = mapContainer.clientHeight;
+    const xAbs = (x / IMG_W) * W;
+    const yAbs = (y / IMG_H) * H;
+    pin.style.left    = `${xAbs}px`;
+    pin.style.top     = `${yAbs}px`;
+    pin.style.display = 'block';
+    if (pathsMap[rn]) {
+      const absPts = pathsMap[rn].map(p => ({
+        x: (p.x / IMG_W) * W,
+        y: (p.y / IMG_H) * H
+      }));
+      drawPath(absPts);
+      startAnim(absPts);
+    } else {
+      clearPath();
+      if (typeof startAnim.stop === 'function') startAnim.stop();
+    }
+    return;
+  }
+
+  // إذا كانت القاعة في الدور الثاني (floor: 2) ولم تكن من 2000 وفوق، أظهر سؤال الدرج
+  if (room && room.floor === 2 && !isUpperRoom) {
+    // استخدم مسار الدرج أو دبوس الدرج
+    const stairsPath = pathsMap['درج'];
+    mapImage.src = 'map-1.png';
+    const W = mapContainer.clientWidth;
+    const H = mapContainer.clientHeight;
+    if (stairsPath) {
+      const absPts = stairsPath.map(p => ({
+        x: (p.x / IMG_W) * W,
+        y: (p.y / IMG_H) * H
+      }));
+      drawPath(absPts);
+      startAnim(absPts);
+      pin.style.display = 'none';
+    } else if (roomCoordinates['درج']) {
+      clearPath();
+      if (typeof startAnim.stop === 'function') startAnim.stop();
+      // إظهار دبوس عند الدرج
+      const { x, y } = roomCoordinates['درج'];
+      const xAbs = (x / IMG_W) * W;
+      const yAbs = (y / IMG_H) * H;
+      pin.style.left    = `${xAbs}px`;
+      pin.style.top     = `${yAbs}px`;
+      pin.style.display = 'block';
+    } else {
+      clearPath();
+      if (typeof startAnim.stop === 'function') startAnim.stop();
+      pin.style.display = 'none';
+    }
+
+    // إضافة سؤال الدرج بجانب البحث
+    const stairsDiv = document.createElement('div');
+    stairsDiv.id = 'stairsQuestion';
+    stairsDiv.style.marginTop = '10px';
+    stairsDiv.innerHTML = `<span>هل وصلت للدرج؟</span> <button id="stairsYes">نعم</button> <button id="stairsNo">لا</button>`;
+    // إضافة سؤال الدرج داخل form-container
+    const formContainer = document.querySelector('.form-container');
+    formContainer.appendChild(stairsDiv);
+
+    document.getElementById('stairsYes').onclick = function() {
+      // عند الضغط على نعم: تظهر خريطة الدور الثاني والمسار المعتاد للغرفة
+      mapImage.src = 'map-2.png';
+      stairsDiv.remove();
+      // رسم المسار المعتاد للغرفة المطلوبة
+      if (pathsMap[rn]) {
+        const absPts2 = pathsMap[rn].map(p => ({
+          x: (p.x / IMG_W) * W,
+          y: (p.y / IMG_H) * H
+        }));
+        drawPath(absPts2);
+        startAnim(absPts2);
+      } else {
+        clearPath();
+        if (typeof startAnim.stop === 'function') startAnim.stop();
+      }
+      // إظهار دبوس الغرفة
+      const { x, y } = roomCoordinates[rn];
+      const xAbs = (x / IMG_W) * W;
+      const yAbs = (y / IMG_H) * H;
+      pin.style.left    = `${xAbs}px`;
+      pin.style.top     = `${yAbs}px`;
+      pin.style.display = 'block';
+    };
+    document.getElementById('stairsNo').onclick = function() {
+      stairsDiv.remove();
+      clearPath();
+      if (typeof startAnim.stop === 'function') startAnim.stop();
     };
     return;
   }
@@ -261,7 +370,7 @@ function locateRoom(){
     startAnim(absPts);
   } else {
     clearPath();
-    cancelAnimationFrame(animId);
+    if (typeof startAnim.stop === 'function') startAnim.stop();
   }
 }
 
