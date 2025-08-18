@@ -52,12 +52,21 @@ body.dark { background: #111; color: #eee; }
 
 .content { flex:1; padding:20px; overflow:auto; }
 
+/* تحسين ملاءمة الخريطة للجوال */
 .map-container {
   position:relative;
-  width:90%; max-width:901px;
-  margin:20px auto; border:5px solid #007BFF;
+  width:98vw; max-width:901px;
+  margin:10px auto; border:5px solid #007BFF;
   overflow:hidden; touch-action:none;
   background:#fff; aspect-ratio:901/988;
+}
+
+@media (max-width: 600px) {
+  .topbar { font-size: 18px; padding: 10px; }
+  .form-container input, .form-container button { font-size: 18px; padding: 14px; }
+  .map-container { width: 100vw; margin: 2px auto; border-width: 2px; }
+  .sidebar { width: 90vw; padding: 10px; }
+  .footer { font-size: 12px; padding: 6px; }
 }
 #mapWrapper {
   position:absolute; top:0; left:0;
@@ -97,8 +106,28 @@ body.dark { background: #111; color: #eee; }
   z-index:15;
 }
 
+/* تحسين ظهور سؤال الدرج للجوال */
 .form-container {
   margin:20px auto; text-align:center;
+  position:relative;
+  z-index:100;
+}
+
+#stairsQuestion {
+  position:fixed;
+  bottom:60px; left:50%;
+  transform:translateX(-50%);
+  background:#fff; color:#222;
+  border:2px solid #007BFF;
+  border-radius:8px;
+  padding:18px 16px;
+  font-size:18px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.12);
+  z-index:2000;
+  max-width:90vw;
+}
+@media (max-width:600px){
+  #stairsQuestion{font-size:20px;padding:22px 10px;bottom:80px;}
 }
 .form-container input,
 .form-container button {
