@@ -104,55 +104,48 @@ function startAnim(pts) {
   animMarker.style.display = 'block';
   animMarker.style.left = '-1000px';
   animMarker.style.top = '-1000px';
-  // حل مشكلة التوقف: استخدم متغير متحكم بالحركة
   let running = true;
+  let totalDist = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    totalDist += Math.hypot(pts[i+1].x - pts[i].x, pts[i+1].y - pts[i].y);
+  }
+  // سرعة ثابتة (بالبكسل/ثانية)
+  const spd = 60;
+  let progress = 0;
   function loop(ts) {
     if (!running) return;
-    animFrame(pts, ts);
+    if (!lastTs) lastTs = ts;
+    const dt = (ts - lastTs) / 1000;
+    lastTs = ts;
+    progress += spd * dt;
+    if (progress > totalDist) progress = 0;
+    // حساب موقع المثلث على المسار
+    let distSoFar = 0;
+    let found = false;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const segDist = Math.hypot(pts[i+1].x - pts[i].x, pts[i+1].y - pts[i].y);
+      if (distSoFar + segDist >= progress) {
+        const ratio = (progress - distSoFar) / segDist;
+        const cx = pts[i].x + (pts[i+1].x - pts[i].x) * ratio;
+        const cy = pts[i].y + (pts[i+1].y - pts[i].y) * ratio;
+        animMarker.style.left = `${cx}px`;
+        animMarker.style.top = `${cy}px`;
+        const ang = Math.atan2(pts[i+1].y - pts[i].y, pts[i+1].x - pts[i].x) * 180 / Math.PI + 90;
+        animMarker.style.transform = `translate(-50%,-50%) rotate(${ang}deg)`;
+        found = true;
+        break;
+      }
+      distSoFar += segDist;
+    }
+    if (!found && pts.length > 1) {
+      // إذا لم يجد نقطة مناسبة، ضع المثلث في آخر نقطة
+      animMarker.style.left = `${pts[pts.length-1].x}px`;
+      animMarker.style.top = `${pts[pts.length-1].y}px`;
+    }
     animId = requestAnimationFrame(loop);
   }
   animId = requestAnimationFrame(loop);
-  // عند إعادة تعيين أو تغيير المسار، أوقف الحركة
   startAnim.stop = () => { running = false; cancelAnimationFrame(animId); };
-}
-function animFrame(pts, ts) {
-  if (!lastTs) lastTs = ts;
-  const dt = (ts - lastTs) / 1000;
-  lastTs = ts;
-
-  // سرعة أقل وأكثر واقعية
-  const spd = 40; // سرعة أبطأ للمثلث
-  const p0 = pts[seg];
-  const p1 = pts[seg + 1] || pts[0]; // إذا وصل للنهاية يرجع للبداية
-  const dx = p1.x - p0.x;
-  const dy = p1.y - p0.y;
-  const dist = Math.hypot(dx, dy);
-
-  // تطبيق التسهيل
-  t += (spd * dt) / dist;
-  let tEase = easeInOut(Math.min(t, 1));
-
-  if (t >= 1) {
-    seg++;
-    t = 0;
-    if (seg >= pts.length) {
-      seg = 0;
-    }
-    tEase = 0;
-  }
-
-  // تأكد أن السهم يبقى ظاهر دائماً ولا يتكرر
-  if (p0 && p1) {
-    const cx = p0.x + dx * tEase;
-    const cy = p0.y + dy * tEase;
-    animMarker.style.left = `${cx}px`;
-    animMarker.style.top = `${cy}px`;
-
-    const ang = Math.atan2(dy, dx) * 180 / Math.PI + 90;
-    animMarker.style.transform = `translate(-50%,-50%) rotate(${ang}deg)`;
-  }
-
-  animId = requestAnimationFrame(next => animFrame(pts, next));
 }
 
 // —————————————————————————————
@@ -491,3 +484,16 @@ window.onload = () => {
   searchBtn.onclick = locateRoom;
   resetBtn.onclick  = resetMap;
 };
+
+// دوران الخريطة بحيث يكون الجنوب الغربي (229°) للأعلى دائماً
+let currentRotation = 0;
+const targetNorth = 229; // الجنوب الغربي
+if (window.DeviceOrientationEvent) {
+  window.addEventListener('deviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation', function(event) {
+    if (typeof event.alpha === 'number') {
+      // احسب الفرق بين اتجاه الجهاز والزاوية المطلوبة
+      currentRotation = targetNorth - event.alpha;
+      mapWrapper.style.transform = `rotate(${currentRotation}deg)`;
+    }
+  }, true);
+}
