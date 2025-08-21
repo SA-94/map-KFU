@@ -148,3 +148,14 @@ button:active {
   text-align:center; padding:10px;
   position:fixed; bottom:0; width:100%; font-size:14px;
 }
+
+#northArrow {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+}
