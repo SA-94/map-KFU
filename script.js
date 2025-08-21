@@ -485,15 +485,55 @@ window.onload = () => {
   resetBtn.onclick  = resetMap;
 };
 
-// دوران الخريطة بحيث يكون الجنوب الغربي (229°) للأعلى دائماً
+// اجعل الصورة دائماً في منتصف الإطار وتدور حول مركزها
+const mapImg = mapWrapper.querySelector('img');
 let currentRotation = 0;
-const targetNorth = 229; // الجنوب الغربي
+const targetNorth = 229;
+function centerMap() {
+  mapImg.style.position = 'absolute';
+  mapImg.style.top = '50%';
+  mapImg.style.left = '50%';
+  mapImg.style.transform = `translate(-50%, -50%) rotate(${currentRotation}deg)`;
+}
 if (window.DeviceOrientationEvent) {
   window.addEventListener('deviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation', function(event) {
     if (typeof event.alpha === 'number') {
-      // احسب الفرق بين اتجاه الجهاز والزاوية المطلوبة
       currentRotation = targetNorth - event.alpha;
-      mapWrapper.style.transform = `rotate(${currentRotation}deg)`;
+      centerMap();
     }
   }, true);
 }
+// عند تحميل الصفحة أو تغيير حجمها، أعد ضبط تموضع الصورة
+window.addEventListener('resize', centerMap);
+window.addEventListener('DOMContentLoaded', centerMap);
+
+// طلب إذن البوصلة في iOS/Safari
+function requestCompassPermission() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(function(permissionState) {
+      if (permissionState === 'granted') {
+        window.location.reload();
+      }
+    }).catch(console.error);
+  }
+}
+// زر لطلب إذن البوصلة إذا كان مطلوباً
+window.addEventListener('DOMContentLoaded', function() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    const compassBtn = document.createElement('button');
+    compassBtn.textContent = 'تفعيل البوصلة';
+    compassBtn.style.position = 'fixed';
+    compassBtn.style.top = '10px';
+    compassBtn.style.left = '50%';
+    compassBtn.style.transform = 'translateX(-50%)';
+    compassBtn.style.zIndex = '9999';
+    compassBtn.style.background = '#1976d2';
+    compassBtn.style.color = '#fff';
+    compassBtn.style.padding = '10px 20px';
+    compassBtn.style.borderRadius = '8px';
+    compassBtn.style.border = 'none';
+    compassBtn.style.fontSize = '1rem';
+    compassBtn.onclick = requestCompassPermission;
+    document.body.appendChild(compassBtn);
+  }
+});
