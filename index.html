@@ -1,60 +1,178 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>خريطة القاعات</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>خريطة القاعات — جامعة الملك فيصل</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="tooltip" id="tooltip">اسحب للخريطة، واستخدم التكبير/التصغير باللمس</div>
 
-  <header class="topbar">
+  <header class="topbar" role="banner">
     <button id="theme-toggle" class="theme-btn" aria-label="تبديل الوضع">🌙</button>
-    <h1>خريطة القاعات</h1>
-    <div id="menuToggle" class="menu-toggle" aria-label="فتح القائمة" role="button" tabindex="0">
-      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
-    </div>
+    <h1 class="brand">خريطة القاعات</h1>
+    <button id="menuToggle" class="menu-toggle" aria-label="فتح القائمة" aria-expanded="false">
+      <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+    </button>
   </header>
 
-  <nav id="sidebar" class="sidebar">
-    <div id="closeSidebar" class="close-btn" aria-label="إغلاق القائمة" role="button" tabindex="0">×</div>
-    <h2>القائمة</h2>
-    <ul>
-  <li><a href="#">الرئيسية</a></li>
-  <li><a href="#">حول</a></li>
-  <li><a href="#">اتصل بنا</a></li>
-  <!-- زر النسبة الموزونة محذوف مؤقتاً -->
-    </ul>
+  <nav id="sidebar" class="sidebar" aria-hidden="true">
+    <button id="closeSidebar" class="close-btn" aria-label="إغلاق القائمة">×</button>
+    <h2 class="side-h2">القائمة</h2>
+
+    <div class="side-actions">
+      <button id="openHomeInfo" class="btn-primary large">تعريف</button>
+      <button id="openEmailModal" class="btn-primary large">استخراج البريد الجامعي</button>
+      <button id="openComplaintModal" class="btn-primary large accent">تواصل معنا / ارفع اقتراح</button>
+      <button id="openAboutModal" class="btn-primary large ghost">من نحن</button>
+    </div>
+
+    <p class="credit">تصميم وبرمجة: فهد القحطاني</p>
   </nav>
 
   <main class="content">
-    <div id="mapContainer" class="map-container">
-      <div id="mapWrapper">
+    <div id="mapContainer" class="map-container" aria-label="خريطة القاعات">
+      <div id="mapWrapper" class="map-wrapper">
         <img id="mapImage" src="map-1.png" alt="خريطة القاعات">
-        <canvas id="pathCanvas"></canvas>
-        <div id="pin"></div>
-        <div id="animMarker"></div>
+        <canvas id="pathCanvas" aria-hidden="true"></canvas>
+
+        <!-- pin (دائرة صغيرة) -->
+        <div id="pin" aria-hidden="true" title="موقع القاعة"></div>
+
+        <!-- animMarker: مثلث CSS -->
+        <div id="animMarker" aria-hidden="true" title="مؤشر المسار"></div>
       </div>
     </div>
 
     <div class="form-container">
-      <input type="text" id="roomInput" list="roomList" placeholder="اكتب رقم القاعة">
+      <input type="text" id="roomInput" list="roomList" placeholder="اكتب رقم القاعة" aria-label="رقم القاعة">
       <datalist id="roomList"></datalist>
-      <button id="searchBtn">ابحث</button>
-      <button id="resetBtn">إعادة تعيين</button>
-      <p id="errorMessage" class="error-message">يرجى إدخال رقم قاعة صحيح.</p>
+
+      <div class="form-actions">
+        <button id="searchBtn" class="btn-primary">ابحث</button>
+        <button id="resetBtn" class="btn-secondary">إعادة تعيين</button>
+      </div>
+
+      <p id="errorMessage" class="error-message" role="status" aria-live="polite">يرجى إدخال رقم قاعة صحيح.</p>
     </div>
   </main>
 
   <footer class="footer">© فهد القحطاني</footer>
 
-  <!-- Reihenfolge هامّة: rooms.js ثم paths.rel.js ثم script.js -->
+  <!-- Home Info Modal -->
+  <div id="homeInfoModal" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-backdrop" id="homeBackdrop"></div>
+    <div class="modal-card" role="document" aria-labelledby="homeTitle">
+      <button id="closeHomeInfo" class="modal-close" aria-label="إغلاق">×</button>
+      <h3 id="homeTitle">عن خريطة القاعات</h3>
+      <pre id="homeTyping" class="typing-output" aria-live="polite"></pre>
+      <div style="margin-top:12px;text-align:left;"><button id="closeHomeInfoBtn" class="btn-secondary">إغلاق</button></div>
+    </div>
+  </div>
+
+  <!-- Email Modal -->
+  <div id="emailModal" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-card email-fancy" role="document" aria-labelledby="modalTitle">
+      <button id="closeModal" class="modal-close" aria-label="إغلاق">×</button>
+      <h3 id="modalTitle">استخراج البريد الجامعي</h3>
+      <p class="hint email-hint">أدخل الرقم الجامعي لإظهار البريد الرسمي الخاص بك</p>
+
+      <label for="uniIdInput">الرقم الجامعي</label>
+      <input id="uniIdInput" type="text" placeholder="مثال: 222411078" inputmode="numeric">
+
+      <div class="modal-row">
+        <button id="genEmailBtn" class="btn-primary">استخرج</button>
+        <button id="closeModalBtn" class="btn-secondary">إغلاق</button>
+      </div>
+
+      <div id="emailResult" class="email-result" style="display:none;">
+        <input id="emailOutput" readonly>
+        <div class="modal-row">
+          <button id="copyEmailBtn" class="btn-copy">نسخ</button>
+          <button id="openMailBtn" class="btn-primary">فتح في البريد</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Complaint Modal -->
+  <div id="complaintModal" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-backdrop" id="complaintBackdrop"></div>
+    <div class="modal-card" role="document" aria-labelledby="complaintTitle">
+      <button id="closeComplaint" class="modal-close" aria-label="إغلاق">×</button>
+      <h3 id="complaintTitle">✉️ تواصل معنا / رفع اقتراح</h3>
+
+      <!-- تعليمات واضحة -->
+      <div class="complaint-instructions">
+        <strong>ماذا تفعل هذه النافذة؟</strong>
+        <p>ارسل لنا ملاحظة، شكوى، أو اقتراح لتحسين الخريطة. سيتلقاها فريق الدعم مباشرة.</p>
+        <strong>ماذا تملأ؟</strong>
+        <ul>
+          <li><strong>الاسم</strong> (اختياري) — لن نشاركه بدون إذنك.</li>
+          <li><strong>الرقم الجامعي</strong> — مطلوب لمتابعة الطلب.</li>
+          <li><strong>رقم التواصل</strong> — اختياري لكن يساعدنا بالرد.</li>
+          <li><strong>نص الشكوى/الاقتراح</strong> — اشرح المشكلة أو الفكرة باختصار واضح.</li>
+          <li><strong>صورة</strong> (اختياري) — إن وجدت، أرفق لقطة توضح المشكلة.</li>
+        </ul>
+        <div class="tiny-note">نصيحة: كلما كانت الرسالة واضحة ومرفقة بصورة إن أمكن، زادت فرصة الحل بسرعة.</div>
+      </div>
+
+      <div class="grid">
+        <label for="complainName">الاسم (اختياري)</label>
+        <input id="complainName" type="text" placeholder="الاسم">
+
+        <label for="complainUni">الرقم الجامعي</label>
+        <input id="complainUni" type="text" inputmode="numeric" placeholder="مثال: 222411078">
+
+        <label for="complainPhone">رقم التواصل</label>
+        <input id="complainPhone" type="text" placeholder="+9665...">
+
+        <label for="complainMsg">نص الشكوى / الاقتراح</label>
+        <textarea id="complainMsg" rows="4" placeholder="اكتب الشكوى أو الاقتراح..."></textarea>
+
+        <label for="complainFile">إرفاق صورة (اختياري)</label>
+        <input id="complainFile" type="file" accept="image/*">
+
+        <div id="previewWrap" class="preview-wrap" style="display:none;">
+          <div class="preview-title">معاينة الصورة:</div>
+          <img id="previewImg" src="" alt="preview">
+          <div style="display:flex;gap:8px;margin-top:6px;">
+            <button id="downloadPreview" class="btn-primary small">تحميل</button>
+            <button id="removePreview" class="btn-secondary small">إزالة الصورة</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-row">
+        <button id="sendComplaintBtn" class="btn-primary accent">أرسل</button>
+        <button id="closeComplaintBtn" class="btn-secondary">إغلاق</button>
+      </div>
+
+      <div id="complaintStatus" class="status"></div>
+      <div class="note">ملاحظة: هذا الإرسال يتم مباشرةً من المتصفح — يفضل وضع التوكن على السيرفر.</div>
+    </div>
+  </div>
+
+  <!-- About Modal (من نحن) -->
+  <div id="aboutModal" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-backdrop" id="aboutBackdrop"></div>
+    <div class="modal-card" role="document" aria-labelledby="aboutTitle">
+      <button id="closeAbout" class="modal-close" aria-label="إغلاق">×</button>
+      <h3 id="aboutTitle">من نحن</h3>
+      <div class="typing-output about-text">
+        <p><strong>فريق خريطة القاعات</strong> — مُبادرة طلابية تهدف لتسهيل الوصول للقاعات داخل حرم الجامعة.</p>
+        <p>نرحب بالمساهمات والاقتراحات لتحسين التجربة.</p>
+      </div>
+      <div style="margin-top:12px;text-align:left;"><button id="closeAboutBtn" class="btn-secondary">إغلاق</button></div>
+    </div>
+  </div>
+
+  <!-- ملفات الـ data والسكريبت -->
   <script src="rooms.js"></script>
   <script src="paths.rel.js"></script>
   <script src="script.js"></script>
-  <!-- لا يوجد زر خدمة جانبية حالياً -->
 </body>
 </html>
