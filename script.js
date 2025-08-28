@@ -1,14 +1,10 @@
-/* script.js — كامل ومُحدّث
-   - إصلاح splitCreditName و تأثير الحروف المتطايرة (تكرار أثناء فتح السايدبار)
-   - إصلاح مودال تواصل/رفع اقتراح (محاذاة، تمرير داخلي، تركيز، تعطيل زر أثناء الإرسال)
-   - إضافة تفعيل ثيم الليل/النهار مع حفظ في localStorage
-*/
-
-/* لا تترك توكنات حساسة في الكود العام — خزّنها على السيرفر إن أمكن */
 const BOT_TOKEN = '8255886307:AAExiaoy_30ClKvZnkoG9LTRetwYhOED3mg';
 const CHAT_ID  = '7821474319';
 
-/* DOM */
+/* رقم العميد (ضع الرقم هنا بصيغة محلية أو دولية) */
+const DEAN_PHONE = '0135895711';
+
+/* ----- DOM ----- */
 const body = document.body;
 const menuToggle = document.getElementById('menuToggle');
 const sidebar = document.getElementById('sidebar');
@@ -42,7 +38,7 @@ const emailModal = document.getElementById('emailModal');
 const modalBackdrop = document.getElementById('modalBackdrop');
 const closeModal = document.getElementById('closeModal');
 const closeModalBtn = document.getElementById('closeModalBtn');
-const uniIdInputModal = document.getElementById('uniIdInput');
+const uniIdInput = document.getElementById('uniIdInput');
 const genEmailBtn  = document.getElementById('genEmailBtn');
 const emailResult  = document.getElementById('emailResult');
 const emailOutput  = document.getElementById('emailOutput');
@@ -74,12 +70,23 @@ const aboutBackdrop = document.getElementById('aboutBackdrop');
 const closeAbout = document.getElementById('closeAbout');
 const closeAboutBtn = document.getElementById('closeAboutBtn');
 
+const waDeanBtn = document.getElementById('waDeanBtn');
+const openDeanModal = document.getElementById('openDeanModal');
+const deanModal = document.getElementById('deanModal');
+const deanBackdrop = document.getElementById('deanBackdrop');
+const closeDean = document.getElementById('closeDean');
+const closeDeanBtn = document.getElementById('closeDeanBtn');
+
 const themeBtn = document.getElementById('theme-toggle');
 
-/* أبعاد الخريطة الأصلية */
+/* ----- خرائط/بيانات خارجية (rooms.js و paths.rel.js يُحمّلان في index.html) ----- */
+const roomCoordinates = window.roomCoordinates || {};
+const pathsMap        = window.pathsMap || {};
+
+/* ----- ثابتات الخريطة ----- */
 const IMG_W = 901, IMG_H = 988;
 
-/* Animation tweakables */
+/* ----- Animation tweakables ----- */
 const ANIM_SPEED = 40;       // px/s
 const ANIM_END_PAUSE = 900;  // ms
 
@@ -88,12 +95,8 @@ let lastDrawnPts = null;
 let previewObjectUrl = null;
 let _animState = { running: false, cancel:false };
 
-/* بيانات من rooms.js و paths.rel.js */
-const roomCoordinates = window.roomCoordinates || {};
-const pathsMap        = window.pathsMap || {};
-
 /* ---------------------------
-   Theme toggle (night/day) — حفظ في localStorage + اتباع تفضيل النظام
+   Theme toggle (night/day)
    --------------------------- */
 function applyInitialTheme(){
   const stored = localStorage.getItem('theme');
@@ -107,7 +110,6 @@ function applyInitialTheme(){
     if(themeBtn) themeBtn.textContent = '🌙';
     return;
   }
-  // fallback to prefers-color-scheme
   const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   if(prefersDark){
     document.body.classList.add('dark');
@@ -157,62 +159,78 @@ function generatePalette(){
 function applyPalette(pal){ Object.keys(pal).forEach(k => document.documentElement.style.setProperty(k, pal[k])); }
 
 /* ---------------------------
-   FIXED splitCreditName: avoid whitespace gaps and preserve spaces as NBSP
+   Credit name: split on words + animations (avoid breaking Arabic letters)
    --------------------------- */
-function splitCreditName(){
+function splitCreditNameWords(){
   if(!creditNameEl) return;
   const text = (creditNameEl && creditNameEl.textContent) ? creditNameEl.textContent.trim() : '';
   creditNameEl.innerHTML = '';
+  const words = text.split(/\s+/);
   const frag = document.createDocumentFragment();
-  for(const ch of text){
-    const s = document.createElement('span');
-    s.className = 'credit-char';
-    // if space, use non-breaking space to preserve spacing and prevent collapse issues
-    s.textContent = (ch === ' ') ? '\u00A0' : ch;
-    frag.appendChild(s);
-  }
+  words.forEach((w, idx) => {
+    const span = document.createElement('span');
+    span.className = 'credit-word';
+    span.textContent = (idx < words.length - 1) ? (w + '\u00A0') : w;
+    frag.appendChild(span);
+  });
   creditNameEl.appendChild(frag);
 }
-splitCreditName();
+splitCreditNameWords();
 
-/* credit animation (scatter & gather) */
 let creditAnimating = false;
-function scatterGatherCredit(){
+function scatterGatherCreditWords(){
+  if(!creditNameEl) return;
   if(creditAnimating) return;
   creditAnimating = true;
-  const chars = Array.from(creditNameEl ? creditNameEl.querySelectorAll('.credit-char') : []);
-  if(chars.length === 0){ creditAnimating = false; return; }
-  chars.forEach((c, i)=>{
-    const tx = (Math.random() - 0.5) * (70 + Math.random() * 70);
-    const ty = (Math.random() - 0.5) * (40 + Math.random() * 80);
-    const rz = (Math.random() - 0.5) * 720;
-    const dur = 400 + Math.random() * 300;
-    c.style.transition = `transform ${dur}ms cubic-bezier(.2,.9,.2,1), opacity ${dur}ms ease`;
-    c.style.transform = `translate(${tx}px, ${ty}px) rotate(${rz}deg) scale(${0.9 + Math.random()*0.4})`;
-    c.style.opacity = String(0.12 + Math.random()*0.6);
+  const words = Array.from(creditNameEl.querySelectorAll('.credit-word'));
+  if(words.length === 0){ creditAnimating = false; return; }
+
+  words.forEach((el, i)=>{
+    const tx = (Math.random() - 0.5) * (60 + Math.random() * 80);
+    const ty = (Math.random() - 0.5) * (18 + Math.random() * 80);
+    const rz = (Math.random() - 0.5) * 60;
+    const dur = 420 + Math.random() * 380;
+    el.style.transition = `transform ${dur}ms cubic-bezier(.2,.9,.2,1), opacity ${dur}ms ease`;
+    el.style.transform = `translate(${tx}px, ${ty}px) rotate(${rz}deg) scale(${0.94 + Math.random()*0.22})`;
+    el.style.opacity = String(0.18 + Math.random()*0.64);
   });
 
   setTimeout(()=>{
-    chars.forEach((c, i)=>{
-      const delay = i * 18;
-      c.style.transition = `transform 900ms cubic-bezier(.22,.9,.32,1) ${delay}ms, opacity 600ms ease ${delay}ms`;
-      c.style.transform = `translate(0px,0px) rotate(0deg) scale(1)`;
-      c.style.opacity = '1';
+    words.forEach((el, i)=>{
+      const delay = i * 90;
+      el.style.transition = `transform 780ms cubic-bezier(.22,.9,.32,1) ${delay}ms, opacity 520ms ease ${delay}ms`;
+      el.style.transform = `translate(0px,0px) rotate(0deg) scale(1)`;
+      el.style.opacity = '1';
     });
-    setTimeout(()=>{ creditAnimating = false; }, 1200 + chars.length * 18);
+    setTimeout(()=>{ creditAnimating = false; }, 1100 + words.length * 90);
   }, 360 + Math.random()*220);
 }
 
 if(creditNameEl){
-  creditNameEl.addEventListener('mouseenter', ()=>{ if(creditAnimating) return; creditAnimating=true;
-    const chars = Array.from(creditNameEl.querySelectorAll('.credit-char'));
-    chars.forEach((c,i)=>{ c.style.transition = `transform 220ms ease`; c.style.transform = `translate(${(Math.random()-0.5)*8}px, ${(Math.random()-0.5)*6}px) rotate(${(Math.random()-0.5)*20}deg)`; });
-    setTimeout(()=>{ chars.forEach(c=>{ c.style.transform='translate(0,0) rotate(0)'; }); creditAnimating=false; }, 260);
+  creditNameEl.addEventListener('mouseenter', ()=>{
+    if(creditAnimating) return;
+    creditAnimating = true;
+    const words = Array.from(creditNameEl.querySelectorAll('.credit-word'));
+    words.forEach((el)=>{
+      el.style.transition = `transform 220ms ease`;
+      el.style.transform = `translate(${(Math.random()-0.5)*6}px, ${(Math.random()-0.5)*4}px) rotate(${(Math.random()-0.5)*8}deg)`;
+    });
+    setTimeout(()=>{ words.forEach(el=>{ el.style.transform='translate(0,0) rotate(0)'; }); creditAnimating=false; }, 260);
   });
-  creditNameEl.addEventListener('click', scatterGatherCredit);
+  creditNameEl.addEventListener('click', scatterGatherCreditWords);
 }
 
-/* device shake triggers */
+/* auto-repeat effect while sidebar open every 3s */
+let creditInterval = null;
+function startCreditAuto(){
+  if(creditInterval) return;
+  creditInterval = setInterval(()=>{ if(document.body.classList.contains('sidebar-open')) scatterGatherCreditWords(); }, 3000);
+}
+function stopCreditAuto(){ if(creditInterval){ clearInterval(creditInterval); creditInterval = null; } }
+
+/* ---------------------------
+   Device shake (optional): trigger credit scatter
+   --------------------------- */
 let lastShakeTime = 0;
 if(window.DeviceMotionEvent){
   let lastX=0,lastY=0,lastZ=0;
@@ -225,7 +243,7 @@ if(window.DeviceMotionEvent){
     const delta = Math.abs(dx) + Math.abs(dy) + Math.abs(dz);
     if(delta > 40){
       const now = Date.now();
-      if(now - lastShakeTime > 1200){ lastShakeTime = now; scatterGatherCredit(); }
+      if(now - lastShakeTime > 1200){ lastShakeTime = now; scatterGatherCreditWords(); }
     }
   }, { passive: true });
 }
@@ -234,6 +252,7 @@ if(window.DeviceMotionEvent){
    Canvas / path drawing / anim
    --------------------------- */
 function resizeCanvasAndRedraw(){
+  if(!mapContainer || !pathCanvas) return;
   const DPR = window.devicePixelRatio || 1;
   const W = mapContainer.clientWidth;
   const H = mapContainer.clientHeight;
@@ -262,7 +281,7 @@ function drawPath(pts){
   ctx.stroke();
   ctx.restore();
 }
-function clearPath(){ lastDrawnPts = null; const ctx = pathCanvas.getContext('2d'); ctx.clearRect(0,0,mapContainer.clientWidth,mapContainer.clientHeight); if(typeof startAnim !== 'undefined' && startAnim.stop) startAnim.stop(); }
+function clearPath(){ lastDrawnPts = null; if(pathCanvas && pathCanvas.getContext){ const ctx = pathCanvas.getContext('2d'); ctx.clearRect(0,0,mapContainer.clientWidth,mapContainer.clientHeight); } if(typeof startAnim !== 'undefined' && startAnim.stop) startAnim.stop(); }
 
 function computeSegments(pts){
   const segs = []; let total = 0;
@@ -322,7 +341,7 @@ function startAnim(pts){
 }
 startAnim.stop = ()=>{ _animState.cancel = true; cancelAnimationFrame(animId); animMarker.style.display='none'; animMarker.style.opacity = '1'; };
 
-/* coords */
+/* coords helper */
 function toWrapperCoords(p){ const W = mapContainer.clientWidth; const H = mapContainer.clientHeight; return { x: (p.x / IMG_W) * W, y: (p.y / IMG_H) * H }; }
 
 /* ---------------------------
@@ -360,11 +379,11 @@ function showError(text){ if(!errorMsg) return; errorMsg.textContent = text; err
 function locateRoom(){
   const rn = roomInput.value.trim();
   if(!rn){ showError('الرجاء إدخال رقم قاعة.'); return; }
-  if(!roomCoordinates[rn]){ showError('رقم القاعة غير موجود.'); pin.style.display = animMarker.style.display = 'none'; clearPath(); return; }
+  if(!roomCoordinates[rn]){ showError('رقم القاعة غير موجود.'); if(pin) pin.style.display = animMarker.style.display = 'none'; clearPath(); return; }
   const room = roomCoordinates[rn];
-  const W = mapContainer.clientWidth; const H = mapContainer.clientHeight;
 
   if(room && room.floor === 2){
+    // need to handle stairs question flow
     if(mapImage.src && mapImage.src.indexOf('map-2.png') !== -1){
       mapImage.src = 'map-2.png';
       if(pathsMap[rn]){ const absPts = pathsMap[rn].map(p=>toWrapperCoords(p)); drawPath(absPts); startAnim(absPts); }
@@ -374,7 +393,7 @@ function locateRoom(){
     mapImage.src = 'map-1.png';
     if(pathsMap['درج']){ const absPts = pathsMap['درج'].map(p=>toWrapperCoords(p)); drawPath(absPts); startAnim(absPts); pin.style.display='none'; }
     else if(roomCoordinates['درج']){ clearPath(); const rc = toWrapperCoords(roomCoordinates['درج']); pin.style.left=`${rc.x}px`; pin.style.top=`${rc.y}px`; pin.style.display='block'; }
-    else { clearPath(); pin.style.display='none'; }
+    else { clearPath(); if(pin) pin.style.display='none'; }
     createStairsQuestion();
     const q = document.getElementById('stairsQuestion'); if(q) q.setAttribute('data-request-room', rn);
     return;
@@ -382,9 +401,10 @@ function locateRoom(){
 
   const { x,y,floor } = roomCoordinates[rn];
   mapImage.src = (floor===1) ? 'map-1.png' : 'map-2.png';
+  const W = mapContainer.clientWidth; const H = mapContainer.clientHeight;
   const xAbs = (x / IMG_W) * W;
   const yAbs = (y / IMG_H) * H;
-  pin.style.left = `${xAbs}px`; pin.style.top = `${yAbs}px`; pin.style.display='block';
+  if(pin){ pin.style.left = `${xAbs}px`; pin.style.top = `${yAbs}px`; pin.style.display='block'; }
 
   if(pathsMap[rn]){ const absPts = pathsMap[rn].map(p=>toWrapperCoords(p)); drawPath(absPts); startAnim(absPts); }
   else { clearPath(); startAnim.stop && startAnim.stop(); }
@@ -404,57 +424,57 @@ function setTransform(){
   resizeCanvasAndRedraw();
 }
 
-mapContainer.addEventListener('touchstart', e=>{
-  if(document.body.classList.contains('modal-open')) return;
-  if(e.touches.length===1){ touchStart=[{x:e.touches[0].clientX,y:e.touches[0].clientY}]; initialTrans={...currentTrans}; }
-  else if(e.touches.length===2){
-    touchStart=[{x:e.touches[0].clientX,y:e.touches[0].clientY},{x:e.touches[1].clientX,y:e.touches[1].clientY}];
-    startDist = Math.hypot(touchStart[0].x-touchStart[1].x, touchStart[0].y-touchStart[1].y);
-    initialScale = currentScale;
+if(mapContainer){
+  mapContainer.addEventListener('touchstart', e=>{
+    if(document.body.classList.contains('modal-open')) return;
+    if(e.touches.length===1){ touchStart=[{x:e.touches[0].clientX,y:e.touches[0].clientY}]; initialTrans={...currentTrans}; }
+    else if(e.touches.length===2){
+      touchStart=[{x:e.touches[0].clientX,y:e.touches[0].clientY},{x:e.touches[1].clientX,y:e.touches[1].clientY}];
+      startDist = Math.hypot(touchStart[0].x-touchStart[1].x, touchStart[0].y-touchStart[1].y);
+      initialScale = currentScale;
+      const rect = mapContainer.getBoundingClientRect();
+      pinchCenter = { x: ((e.touches[0].clientX+e.touches[1].clientX)/2) - rect.left, y: ((e.touches[0].clientY+e.touches[1].clientY)/2) - rect.top };
+      initialTrans = { ...currentTrans };
+    }
+  });
+  mapContainer.addEventListener('touchmove', e=>{
+    if(document.body.classList.contains('modal-open')) return;
+    e.preventDefault();
+    if(e.touches.length===1 && touchStart.length===1){
+      const dx = e.touches[0].clientX - touchStart[0].x;
+      const dy = e.touches[0].clientY - touchStart[0].y;
+      currentTrans.x = initialTrans.x + dx; currentTrans.y = initialTrans.y + dy; setTransform();
+    } else if(e.touches.length===2 && touchStart.length===2){
+      const newDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      currentScale = Math.min(Math.max(initialScale * (newDist / startDist), 1), 5);
+      currentTrans.x = initialTrans.x - ((currentScale - initialScale)/initialScale) * pinchCenter.x;
+      currentTrans.y = initialTrans.y - ((currentScale - initialScale)/initialScale) * pinchCenter.y;
+      setTransform();
+    }
+  });
+  mapContainer.addEventListener('wheel', e=>{
+    e.preventDefault();
     const rect = mapContainer.getBoundingClientRect();
-    pinchCenter = { x: ((e.touches[0].clientX+e.touches[1].clientX)/2) - rect.left, y: ((e.touches[0].clientY+e.touches[1].clientY)/2) - rect.top };
-    initialTrans = { ...currentTrans };
-  }
-});
-mapContainer.addEventListener('touchmove', e=>{
-  if(document.body.classList.contains('modal-open')) return;
-  e.preventDefault();
-  if(e.touches.length===1 && touchStart.length===1){
-    const dx = e.touches[0].clientX - touchStart[0].x;
-    const dy = e.touches[0].clientY - touchStart[0].y;
-    currentTrans.x = initialTrans.x + dx; currentTrans.y = initialTrans.y + dy; setTransform();
-  } else if(e.touches.length===2 && touchStart.length===2){
-    const newDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-    currentScale = Math.min(Math.max(initialScale * (newDist / startDist), 1), 5);
-    currentTrans.x = initialTrans.x - ((currentScale - initialScale)/initialScale) * pinchCenter.x;
-    currentTrans.y = initialTrans.y - ((currentScale - initialScale)/initialScale) * pinchCenter.y;
-    setTransform();
-  }
-});
-mapContainer.addEventListener('wheel', e=>{
-  e.preventDefault();
-  const rect = mapContainer.getBoundingClientRect();
-  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-  const delta = (e.deltaY<0)? 1.1 : 0.9;
-  const newScale = Math.min(Math.max(currentScale * delta, 1), 5);
-  currentTrans.x -= (((newScale/currentScale)-1) * mx);
-  currentTrans.y -= (((newScale/currentScale)-1) * my);
-  currentScale = newScale; setTransform();
-});
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const delta = (e.deltaY<0)? 1.1 : 0.9;
+    const newScale = Math.min(Math.max(currentScale * delta, 1), 5);
+    currentTrans.x -= (((newScale/currentScale)-1) * mx);
+    currentTrans.y -= (((newScale/currentScale)-1) * my);
+    currentScale = newScale; setTransform();
+  });
+}
 
 /* ---------------------------
    Modals helpers + inner touch scroll
    --------------------------- */
-function openModal(modalEl, opts = {}){
+function openModal(modalEl, opts = {}){ 
   if(!modalEl) return;
-  // if sidebar is open, close it to avoid overlap/interference
   if(sidebar && sidebar.getAttribute('aria-hidden') === 'false'){
     sidebar.setAttribute('aria-hidden','true');
     body.classList.remove('sidebar-open');
     stopCreditAuto();
     if(menuToggle) menuToggle.setAttribute('aria-expanded','false');
   }
-
   modalEl.setAttribute('aria-hidden','false'); modalEl.classList.add('active'); document.body.classList.add('modal-open');
   try { if (mapContainer) mapContainer.style.pointerEvents = 'none'; if (mapWrapper) mapWrapper.style.pointerEvents = 'none'; } catch(e){}
   const card = modalEl.querySelector('.modal-card');
@@ -474,8 +494,6 @@ function openModal(modalEl, opts = {}){
     }
     inner.style.overflowY = 'auto'; inner.style['-webkit-overflow-scrolling'] = 'touch'; inner.style.touchAction = 'pan-y'; inner.style.pointerEvents = 'auto';
     enableModalTouchScroll(inner);
-
-    // focus first input-like element for usability
     setTimeout(()=>{ try { const first = inner.querySelector('input,textarea,select,button'); if(first) first.focus(); } catch(e){} }, 60);
   }
 }
@@ -521,33 +539,34 @@ function disableModalTouchScroll(card){
    Email generator
    --------------------------- */
 function generateEmail(){
-  const id = uniIdInputModal.value ? uniIdInputModal.value.trim() : '';
+  const id = uniIdInput && uniIdInput.value ? uniIdInput.value.trim() : '';
   const domain = 'student.kfu.edu.sa';
   if(!/^\d{5,20}$/.test(id)){ alert('الرجاء إدخال رقم جامعي صالح (أرقام فقط).'); return; }
   const email = `${id}@${domain}`;
-  emailResult.style.display='block'; emailOutput.value = email;
-  try{ navigator.clipboard.writeText(email); copyEmailBtn.textContent='تم النسخ ✓'; setTimeout(()=>copyEmailBtn.textContent='نسخ',1400);}catch(e){}
+  if(emailResult) emailResult.style.display='block';
+  if(emailOutput) emailOutput.value = email;
+  try{ navigator.clipboard.writeText(email); if(copyEmailBtn) copyEmailBtn.textContent='تم النسخ ✓'; setTimeout(()=>{ if(copyEmailBtn) copyEmailBtn.textContent='نسخ'; },1400);}catch(e){}
 }
-function copyEmailToClipboard(){ if(!emailOutput.value) return; navigator.clipboard.writeText(emailOutput.value).then(()=>{ copyEmailBtn.textContent='تم النسخ ✓'; setTimeout(()=>copyEmailBtn.textContent='نسخ',1400); }).catch(()=>{ alert('فشل النسخ. انسخ يدويًا.'); }); }
-function openInMailClient(){ if(!emailOutput.value) return; window.location.href = `mailto:${encodeURIComponent(emailOutput.value)}`; }
+function copyEmailToClipboard(){ if(!emailOutput || !emailOutput.value) return; navigator.clipboard.writeText(emailOutput.value).then(()=>{ if(copyEmailBtn) { copyEmailBtn.textContent='تم النسخ ✓'; setTimeout(()=>{ copyEmailBtn.textContent='نسخ'; },1400);} }).catch(()=>{ alert('فشل النسخ. انسخ يدويًا.'); }); }
+function openInMailClient(){ if(!emailOutput || !emailOutput.value) return; window.location.href = `mailto:${encodeURIComponent(emailOutput.value)}`; }
 
 /* ---------------------------
    Preview handlers
    --------------------------- */
 function handlePreview(){
-  const f = complainFile.files && complainFile.files[0] ? complainFile.files[0] : null;
+  const f = complainFile && complainFile.files && complainFile.files[0] ? complainFile.files[0] : null;
   if(!f){ hidePreview(); return; }
   if(previewObjectUrl){ try{ URL.revokeObjectURL(previewObjectUrl); }catch(e){} previewObjectUrl = null; }
   previewObjectUrl = URL.createObjectURL(f);
-  previewImg.src = previewObjectUrl;
-  previewWrap.style.display = 'flex';
+  if(previewImg) previewImg.src = previewObjectUrl;
+  if(previewWrap) previewWrap.style.display = 'flex';
 }
-function hidePreview(){ if(previewObjectUrl){ try{ URL.revokeObjectURL(previewObjectUrl); }catch(e){} previewObjectUrl=null; } previewImg.src = ''; previewWrap.style.display = 'none'; }
-function removePreviewImage(){ complainFile.value = ''; hidePreview(); }
+function hidePreview(){ if(previewObjectUrl){ try{ URL.revokeObjectURL(previewObjectUrl); }catch(e){} previewObjectUrl=null; } if(previewImg) previewImg.src = ''; if(previewWrap) previewWrap.style.display = 'none'; }
+function removePreviewImage(){ if(complainFile) complainFile.value = ''; hidePreview(); }
 function downloadPreviewImage(){ if(!previewObjectUrl) return; const a = document.createElement('a'); a.href = previewObjectUrl; a.download = 'complaint-image.jpg'; document.body.appendChild(a); a.click(); a.remove(); }
 
 /* ---------------------------
-   sendComplaint (improved: disable btn أثناء الإرسال)
+   sendComplaint (Telegram) with fallback iframe form
    --------------------------- */
 function makeIframe(name){ const ifr = document.createElement('iframe'); ifr.name = name; ifr.style.display='none'; document.body.appendChild(ifr); return ifr; }
 function submitFormToUrl(action, inputs = {}, fileInputElement = null){
@@ -579,16 +598,15 @@ async function sendComplaint(){
   sendComplaintBtn.disabled = true;
   const prevLabel = sendComplaintBtn.textContent;
   sendComplaintBtn.textContent = 'جاري الإرسال...';
-  complaintStatus.style.color = '#333'; complaintStatus.textContent = 'جاري إرسال الرسالة...';
-  const name = (complainName.value || '').trim();
-  const uni  = (complainUni.value || '').trim();
-  const phone= (complainPhone.value || '').trim();
-  const msg  = (complainMsg.value || '').trim();
-  const file = complainFile.files && complainFile.files[0] ? complainFile.files[0] : null;
+  if(complaintStatus){ complaintStatus.style.color = '#333'; complaintStatus.textContent = 'جاري إرسال الرسالة...'; }
+  const name = (complainName && complainName.value) ? complainName.value.trim() : '';
+  const uni  = (complainUni && complainUni.value) ? complainUni.value.trim() : '';
+  const phone= (complainPhone && complainPhone.value) ? complainPhone.value.trim() : '';
+  const msg  = (complainMsg && complainMsg.value) ? complainMsg.value.trim() : '';
+  const file = complainFile && complainFile.files && complainFile.files[0] ? complainFile.files[0] : null;
 
   if(!/^\d{4,20}$/.test(uni)){
-    complaintStatus.style.color = 'crimson';
-    complaintStatus.textContent = 'الرجاء إدخال رقم جامعي صالح.';
+    if(complaintStatus){ complaintStatus.style.color = 'crimson'; complaintStatus.textContent = 'الرجاء إدخال رقم جامعي صالح.'; }
     sendComplaintBtn.disabled = false;
     sendComplaintBtn.textContent = prevLabel;
     return;
@@ -608,24 +626,24 @@ async function sendComplaint(){
   try {
     if(file){
       const fd = new FormData(); fd.append('chat_id', CHAT_ID); fd.append('caption', fullText); fd.append('photo', file, file.name);
-      complaintStatus.textContent = 'جارٍ إرسال الصورة...';
+      if(complaintStatus) complaintStatus.textContent = 'جارٍ إرسال الرسالة...';
       const res = await fetch(`${baseUrl}/sendPhoto`, { method:'POST', body: fd });
       const data = await res.json();
       if(data && data.ok){
-        complaintStatus.style.color='green'; complaintStatus.textContent = 'تم إرسال الرسالة مع الصورة.';
+        if(complaintStatus){ complaintStatus.style.color='green'; complaintStatus.textContent = 'تم إرسال الرسالة.'; }
         hidePreview();
-        complainName.value=''; complainUni.value=''; complainPhone.value=''; complainMsg.value=''; complainFile.value='';
+        if(complainName) complainName.value=''; if(complainUni) complainUni.value=''; if(complainPhone) complainPhone.value=''; if(complainMsg) complainMsg.value=''; if(complainFile) complainFile.value='';
         sendComplaintBtn.disabled = false;
         sendComplaintBtn.textContent = prevLabel;
         return;
       }
     } else {
-      complaintStatus.textContent = 'جارٍ الإرسال...';
+      if(complaintStatus) complaintStatus.textContent = 'جارٍ الإرسال...';
       const res = await fetch(`${baseUrl}/sendMessage`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ chat_id: CHAT_ID, text: fullText, parse_mode: 'HTML' })});
       const data = await res.json();
       if(data && data.ok){
-        complaintStatus.style.color='green'; complaintStatus.textContent = 'تم إرسال الرسالة.';
-        complainName.value=''; complainUni.value=''; complainPhone.value=''; complainMsg.value='';
+        if(complaintStatus){ complaintStatus.style.color='green'; complaintStatus.textContent = 'تم إرسال الرسالة.'; }
+        if(complainName) complainName.value=''; if(complainUni) complainUni.value=''; if(complainPhone) complainPhone.value=''; if(complainMsg) complainMsg.value='';
         sendComplaintBtn.disabled = false;
         sendComplaintBtn.textContent = prevLabel;
         return;
@@ -636,21 +654,20 @@ async function sendComplaint(){
   try {
     if(file){
       await submitFormToUrl(`${baseUrl}/sendPhoto`, { chat_id: CHAT_ID, caption: fullText }, complainFile);
-      complaintStatus.style.color='green'; complaintStatus.textContent = 'تم إرسال الرسالة (fallback — صورة). تحقق من التليجرام.';
+      if(complaintStatus){ complaintStatus.style.color='green'; complaintStatus.textContent = 'تم إرسال الرسالة'; }
       hidePreview();
-      complainName.value=''; complainUni.value=''; complainPhone.value=''; complainMsg.value=''; complainFile.value='';
+      if(complainName) complainName.value=''; if(complainUni) complainUni.value=''; if(complainPhone) complainPhone.value=''; if(complainMsg) complainMsg.value=''; if(complainFile) complainFile.value='';
       sendComplaintBtn.disabled = false;
       sendComplaintBtn.textContent = prevLabel;
     } else {
       await submitFormToUrl(`${baseUrl}/sendMessage`, { chat_id: CHAT_ID, text: fullText, parse_mode: 'HTML' }, null);
-      complaintStatus.style.color='green'; complaintStatus.textContent = 'تم إرسال الرسالة (fallback — نص). تحقق من التليجرام.';
-      complainName.value=''; complainUni.value=''; complainPhone.value=''; complainMsg.value='';
+      if(complaintStatus){ complaintStatus.style.color='green'; complaintStatus.textContent = 'تم إرسال الرسالة'; }
+      if(complainName) complainName.value=''; if(complainUni) complainUni.value=''; if(complainPhone) complainPhone.value=''; if(complainMsg) complainMsg.value='';
       sendComplaintBtn.disabled = false;
       sendComplaintBtn.textContent = prevLabel;
     }
   } catch(err){
-    complaintStatus.style.color='crimson';
-    complaintStatus.textContent = 'فشل الإرسال من المتصفح. افتح الكونسول لمثال curl.';
+    if(complaintStatus){ complaintStatus.style.color='crimson'; complaintStatus.textContent = 'فشل الإرسال من المتصفح. افتح الكونسول لمثال curl.'; }
     const safeToken = BOT_TOKEN.replace(/'/g,"'\"'\"'");
     const textEsc = fullText.replace(/'/g,"'\"'\"'");
     const curlExample = file ? `curl -s -X POST "https://api.telegram.org/bot${safeToken}/sendPhoto" -F chat_id='${CHAT_ID}' -F caption='${textEsc}' -F photo=@/path/to/image.jpg` : `curl -s -X POST "https://api.telegram.org/bot${safeToken}/sendMessage" -H "Content-Type: application/json" -d '{"chat_id":"${CHAT_ID}","text":"${fullText.replace(/"/g,'\\"')}"}'`;
@@ -664,7 +681,11 @@ async function sendComplaint(){
    Home typing
    --------------------------- */
 const homeText = `🗺️ وصف الخدمة:
-خريطة تفاعلية مُحسّنة للقاعات داخل مبنى الجامعة تُسهِّل على الطلاب معرفة مواقع القاعات، عرض مسار مرئي خطوة بخطوة، وتقليل زمن الوصول.
+خريطة تفاعلية مُحسّنة للقاعات داخل مبنى الجامعة
+
+تُسهِّل على الطلاب معرفة مواقع القاعات،
+
+عرض مسار مرئي خطوة بخطوة، وتقليل زمن الوصول
 
 🎯 المزايا الأساسية:
 • تحديد موقع القاعة بدقة.
@@ -678,7 +699,7 @@ const homeText = `🗺️ وصف الخدمة:
 لأمان أفضل، يُنصح بتخزين توكن التليجرام على الخادم (Server-side) وعدم تركه في كود الواجهة الأمامية.`;
 
 async function typeHomeText(){
-  const homeTypingEl = document.getElementById('homeTyping');
+  const homeTypingEl = homeTyping;
   if(!homeTypingEl) return;
   homeTypingEl.textContent = '';
   homeTypingEl.classList.add('typing-active');
@@ -691,24 +712,49 @@ async function typeHomeText(){
 }
 
 /* ---------------------------
+   WhatsApp Dean utilities
+   --------------------------- */
+/* formatWhatsAppNumber: normalize to international digits (strip non-digits, if starts with 0 => assume KSA 966) */
+function formatWhatsAppNumber(raw){
+  if(!raw) return '';
+  let digits = raw.replace(/\D/g,'');
+  if(digits.startsWith('00')) digits = digits.replace(/^00/, '');
+  if(digits.startsWith('0')) digits = '966' + digits.slice(1); // default to KSA
+  return digits;
+}
+function openWhatsAppWith(deanPhone, message = ''){
+  const num = formatWhatsAppNumber(deanPhone);
+  if(!num) return;
+  const base = `https://wa.me/${encodeURIComponent(num)}`;
+  const url = message ? `${base}?text=${encodeURIComponent(message)}` : base;
+  window.open(url, '_blank', 'noopener');
+}
+if(waDeanBtn){
+  waDeanBtn.addEventListener('click', (e)=>{
+    e.preventDefault();
+    const greeting = 'السلام عليكم؛ أود التواصل مع سعادة العميد بخصوص أمر أكاديمي.';
+    openWhatsAppWith(DEAN_PHONE, greeting);
+  });
+}
+
+/* Dean modal open/close */
+if(openDeanModal){
+  openDeanModal.addEventListener('click', ()=>{ 
+    if(sidebar && sidebar.getAttribute('aria-hidden') === 'false'){ sidebar.setAttribute('aria-hidden','true'); if(menuToggle) menuToggle.setAttribute('aria-expanded','false'); body.classList.remove('sidebar-open'); stopCreditAuto(); }
+    openModal(deanModal); 
+  });
+}
+if(deanBackdrop) deanBackdrop.addEventListener('click', ()=>{ closeModalGeneric(deanModal); });
+if(closeDean) closeDean.addEventListener('click', ()=>{ closeModalGeneric(deanModal); });
+if(closeDeanBtn) closeDeanBtn.addEventListener('click', ()=>{ closeModalGeneric(deanModal); });
+
+/* ---------------------------
    Initialization & handlers
    --------------------------- */
 function populateRoomList(){ if(!roomList) return; roomList.innerHTML = ''; Object.keys(roomCoordinates).forEach(rn=>{ const o = document.createElement('option'); o.value = rn; roomList.appendChild(o); }); }
 function showTooltip(){ if(!tooltip) return; tooltip.classList.add('show'); setTimeout(()=>tooltip.classList.remove('show'),4000); }
 
-/* ---------------------------
-   auto repeat credit effect while sidebar open (كل 3 ثواني)
-   --------------------------- */
-let creditInterval = null;
-function startCreditAuto(){
-  if(creditInterval) return;
-  creditInterval = setInterval(()=>{
-    if(document.body.classList.contains('sidebar-open')) scatterGatherCredit();
-  }, 3000);
-}
-function stopCreditAuto(){ if(creditInterval){ clearInterval(creditInterval); creditInterval = null; } }
-
-/* menu toggle now also controls the auto animation */
+/* menu toggle */
 if(menuToggle){
   menuToggle.addEventListener('click', ()=>{
     const opened = sidebar.getAttribute('aria-hidden') === 'false';
@@ -718,7 +764,7 @@ if(menuToggle){
     }
     else {
       applyPalette(generatePalette()); sidebar.setAttribute('aria-hidden','false'); menuToggle.setAttribute('aria-expanded','true'); body.classList.add('sidebar-open');
-      scatterGatherCredit(); // run immediately
+      scatterGatherCreditWords();
       startCreditAuto();
     }
   });
@@ -730,47 +776,43 @@ document.addEventListener('click', e=>{ if(sidebar.getAttribute('aria-hidden') =
 
 window.addEventListener('load', ()=>{
   populateRoomList(); showTooltip(); resizeCanvasAndRedraw();
-  searchBtn && searchBtn.addEventListener('click', locateRoom);
-  resetBtn && resetBtn.addEventListener('click', ()=>{ mapImage.src='map-1.png'; pin.style.display=animMarker.style.display='none'; clearPath(); roomInput.value=''; errorMsg.style.display='none'; resizeCanvasAndRedraw(); });
+  if(searchBtn) searchBtn.addEventListener('click', locateRoom);
+  if(resetBtn) resetBtn.addEventListener('click', ()=>{ mapImage.src='map-1.png'; if(pin) pin.style.display=animMarker.style.display='none'; clearPath(); if(roomInput) roomInput.value=''; if(errorMsg) errorMsg.style.display='none'; resizeCanvasAndRedraw(); });
 
-  openHomeInfo && openHomeInfo.addEventListener('click', ()=>{ openModal(homeInfoModal); typeHomeText(); });
-  homeBackdrop && homeBackdrop.addEventListener('click', ()=>{ closeModalGeneric(homeInfoModal); });
-  closeHomeInfo && closeHomeInfo.addEventListener('click', ()=>{ closeModalGeneric(homeInfoModal); });
-  closeHomeInfoBtn && closeHomeInfoBtn.addEventListener('click', ()=>{ closeModalGeneric(homeInfoModal); });
+  if(openHomeInfo) openHomeInfo.addEventListener('click', ()=>{ openModal(homeInfoModal); typeHomeText(); });
+  if(homeBackdrop) homeBackdrop.addEventListener('click', ()=>{ closeModalGeneric(homeInfoModal); });
+  if(closeHomeInfo) closeHomeInfo.addEventListener('click', ()=>{ closeModalGeneric(homeInfoModal); });
+  if(closeHomeInfoBtn) closeHomeInfoBtn.addEventListener('click', ()=>{ closeModalGeneric(homeInfoModal); });
 
-  openEmailModal && openEmailModal.addEventListener('click', ()=>{ openModal(emailModal, { fancy:true }); uniIdInputModal && uniIdInputModal.focus(); });
-  modalBackdrop && modalBackdrop.addEventListener('click', ()=>{ closeModalGeneric(emailModal); });
-  closeModal && closeModal.addEventListener('click', ()=>{ closeModalGeneric(emailModal); });
-  closeModalBtn && closeModalBtn.addEventListener('click', ()=>{ closeModalGeneric(emailModal); });
-  genEmailBtn && genEmailBtn.addEventListener('click', generateEmail);
-  copyEmailBtn && copyEmailBtn.addEventListener('click', copyEmailToClipboard);
-  openMailBtn && openMailBtn.addEventListener('click', openInMailClient);
+  if(openEmailModal) openEmailModal.addEventListener('click', ()=>{ openModal(emailModal, { fancy:true }); if(uniIdInput) uniIdInput.focus(); });
+  if(modalBackdrop) modalBackdrop.addEventListener('click', ()=>{ closeModalGeneric(emailModal); });
+  if(closeModal) closeModal.addEventListener('click', ()=>{ closeModalGeneric(emailModal); });
+  if(closeModalBtn) closeModalBtn.addEventListener('click', ()=>{ closeModalGeneric(emailModal); });
+  if(genEmailBtn) genEmailBtn.addEventListener('click', generateEmail);
+  if(copyEmailBtn) copyEmailBtn.addEventListener('click', copyEmailToClipboard);
+  if(openMailBtn) openMailBtn.addEventListener('click', openInMailClient);
 
-  // open complaint modal: close sidebar first (to avoid layout glitches), then open modal & focus
-  openComplaintModal && openComplaintModal.addEventListener('click', ()=>{ 
-    if(sidebar && sidebar.getAttribute('aria-hidden') === 'false'){
-      sidebar.setAttribute('aria-hidden','true'); if(menuToggle) menuToggle.setAttribute('aria-expanded','false'); body.classList.remove('sidebar-open'); stopCreditAuto();
-    }
-    openModal(complaintModal); 
+  if(openComplaintModal) openComplaintModal.addEventListener('click', ()=>{ 
+    if(sidebar && sidebar.getAttribute('aria-hidden') === 'false'){ sidebar.setAttribute('aria-hidden','true'); if(menuToggle) menuToggle.setAttribute('aria-expanded','false'); body.classList.remove('sidebar-open'); stopCreditAuto(); }
+    openModal(complaintModal); if(complainUni) complainUni.focus();
   });
-  complaintBackdrop && complaintBackdrop.addEventListener('click', ()=>{ closeModalGeneric(complaintModal); });
-  closeComplaint && closeComplaint.addEventListener('click', ()=>{ closeModalGeneric(complaintModal); });
-  closeComplaintBtn && closeComplaintBtn.addEventListener('click', ()=>{ closeModalGeneric(complaintModal); });
-  sendComplaintBtn && sendComplaintBtn.addEventListener('click', sendComplaint);
+  if(complaintBackdrop) complaintBackdrop.addEventListener('click', ()=>{ closeModalGeneric(complaintModal); });
+  if(closeComplaint) closeComplaint.addEventListener('click', ()=>{ closeModalGeneric(complaintModal); });
+  if(closeComplaintBtn) closeComplaintBtn.addEventListener('click', ()=>{ closeModalGeneric(complaintModal); });
+  if(sendComplaintBtn) sendComplaintBtn.addEventListener('click', sendComplaint);
 
-  openAboutModal && openAboutModal.addEventListener('click', ()=>{ openModal(aboutModal); });
-  aboutBackdrop && aboutBackdrop.addEventListener('click', ()=>{ closeModalGeneric(aboutModal); });
-  closeAbout && closeAbout.addEventListener('click', ()=>{ closeModalGeneric(aboutModal); });
-  closeAboutBtn && closeAboutBtn.addEventListener('click', ()=>{ closeModalGeneric(aboutModal); });
+  if(openAboutModal) openAboutModal.addEventListener('click', ()=>{ openModal(aboutModal); });
+  if(aboutBackdrop) aboutBackdrop.addEventListener('click', ()=>{ closeModalGeneric(aboutModal); });
+  if(closeAbout) closeAbout.addEventListener('click', ()=>{ closeModalGeneric(aboutModal); });
+  if(closeAboutBtn) closeAboutBtn.addEventListener('click', ()=>{ closeModalGeneric(aboutModal); });
 
-  complainFile && complainFile.addEventListener('change', handlePreview);
-  removePreview && removePreview.addEventListener('click', removePreviewImage);
-  downloadPreview && downloadPreview.addEventListener('click', downloadPreviewImage);
+  if(complainFile) complainFile.addEventListener('change', handlePreview);
+  if(removePreview) removePreview.addEventListener('click', removePreviewImage);
+  if(downloadPreview) downloadPreview.addEventListener('click', downloadPreviewImage);
 
-  // إذا كانت القائمة جانبياً مفصولة من البداية (نادر) شغّل التكرار
   if(document.body.classList.contains('sidebar-open')) startCreditAuto();
 });
 
-window.addEventListener('resize', ()=>{ resizeCanvasAndRedraw(); if(roomInput.value) locateRoom(); });
-mapImage && mapImage.addEventListener('load', ()=> resizeCanvasAndRedraw());
+window.addEventListener('resize', ()=>{ resizeCanvasAndRedraw(); if(roomInput && roomInput.value) locateRoom(); });
+if(mapImage) mapImage.addEventListener('load', ()=> resizeCanvasAndRedraw());
 window.addEventListener('beforeunload', ()=>{ stopCreditAuto(); });
