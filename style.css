@@ -12,7 +12,7 @@
   --holo2: rgba(0, 255, 200, 0.10);
 }
 
-/* Dark theme variables — أضف هذا الجزء بعد :root */
+/* Dark theme variables */
 body.dark{
   --bg: #071028;
   --text: #e6eef8;
@@ -51,38 +51,51 @@ body.sidebar-open{background:linear-gradient(180deg,#e6e9ef,#d9dbe0)}
 
 .side-h2{color:var(--primary-1);font-weight:800;margin-bottom:12px}
 .side-actions{display:flex;flex-direction:column;gap:16px;margin-top:6px}
-.btn-primary.large{padding:14px;border-radius:12px;background:linear-gradient(90deg,var(--primary-1),var(--primary-2));color:#fff;border:none;font-weight:800;box-shadow:0 10px 36px rgba(79,70,229,0.08);cursor:pointer}
+.btn-primary.large{padding:14px;border-radius:12px;background:linear-gradient(90deg,var(--primary-1),var(--primary-2));color:#fff;border:none;font-weight:800;box-shadow:0 10px 36px rgba(79,70,229,0.08);cursor:pointer;text-align:center}
 .btn-primary.accent{background:linear-gradient(90deg,var(--accent-1),var(--accent-2))}
 .btn-about{width:100%;padding:12px;border-radius:12px;background:transparent;border:2px dashed rgba(11,27,49,0.06);cursor:pointer;color:var(--primary-1);font-weight:700}
 .about-frame{padding:8px;border-radius:10px;border:1px solid rgba(11,27,49,0.04);background:linear-gradient(180deg,rgba(99,102,241,0.03),rgba(16,185,129,0.02))}
+
+/* WhatsApp dean button styling */
+#waDeanBtn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  text-decoration:none;
+  color:inherit;
+}
+#waDeanBtn::before{
+  content: "📱";
+  font-size:16px;
+}
 
 /* credit card */
 .credit-card{position:absolute;left:20px;right:20px;bottom:18px;padding:12px;border-radius:14px;background:linear-gradient(135deg, rgba(255,255,255,0.78), rgba(245,248,255,0.95));box-shadow:0 8px 40px rgba(15,23,42,0.06);border:1px solid rgba(99,102,241,0.08);overflow:hidden;display:flex;align-items:center;gap:12px}
 .credit-inner{z-index:2;display:flex;flex-direction:column;gap:4px}
 .credit-title{font-size:12px;color:var(--muted)}
 
-/* ==== FIX: credit-name uses flex to avoid inline whitespace gaps ==== */
+/* ==== display name as words (keep Arabic letters connected) ==== */
 .credit-name {
-  display: flex;
-  gap: 3px;
+  display: inline-flex;
+  gap: 6px;
   align-items: center;
-  flex-wrap: wrap;
   font-weight: 900;
   font-size: 15px;
   color: var(--primary-1);
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
   line-height: 1;
 }
 
-.credit-char {
+.credit-word {
   display: inline-block;
+  white-space: nowrap;
   margin: 0;
-  padding: 0 1px;
+  padding: 0;
   transform-origin: center;
   transition: transform .9s cubic-bezier(.2,.9,.2,1), opacity .7s;
   font: inherit;
   line-height: inherit;
-  white-space: pre; /* preserve NBSP */
 }
 
 .credit-meta{font-size:12px;color:var(--muted)}
@@ -115,7 +128,7 @@ body.sidebar-open{background:linear-gradient(180deg,#e6e9ef,#d9dbe0)}
 /* sticky stairs question */
 #stairsSlot .stairs-question{position:sticky;top:8px;z-index:60;display:flex;gap:10px;align-items:center;justify-content:center;background:linear-gradient(90deg,rgba(99,102,241,0.06),rgba(16,185,129,0.03));padding:8px 12px;border-radius:10px;border:1px solid rgba(79,70,229,0.06);margin-bottom:10px;font-size:14px}
 
-/* modal (improved for complaint modal) */
+/* modal */
 .modal{
   display:none;
   position:fixed;
@@ -198,7 +211,7 @@ body.sidebar-open{background:linear-gradient(180deg,#e6e9ef,#d9dbe0)}
   #animMarker{border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:12px solid var(--accent-1)}
 }
 
-/* Dark-mode tweaks to some elements for contrast */
+/* Dark-mode tweaks */
 body.dark .topbar{ box-shadow: 0 8px 24px rgba(6,8,20,0.25); }
 body.dark .menu-toggle .bar{ background: #e6eef8; }
 body.dark .theme-btn{ color: #fff; }
