@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>خريطة القاعات — جامعة الملك فيصل</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
@@ -26,10 +26,21 @@
       <button id="openHomeInfo" class="btn-primary large">تعريف</button>
       <button id="openEmailModal" class="btn-primary large">استخراج البريد الجامعي</button>
       <button id="openComplaintModal" class="btn-primary large accent">تواصل معنا / ارفع اقتراح</button>
-      <button id="openAboutModal" class="btn-primary large ghost">من نحن</button>
+
+      <div class="about-frame">
+        <button id="openAboutModal" class="btn-about">من نحن</button>
+      </div>
     </div>
 
-    <p class="credit">تصميم وبرمجة: فهد القحطاني</p>
+    <div class="credit-card" aria-hidden="false">
+      <div class="credit-inner">
+        <div class="credit-title">تصميم وبرمجة</div>
+        <div id="creditName" class="credit-name">فهد القحطاني</div>
+        <div class="credit-meta">طالب - مطوّر واجهات أكترونية تفاعلية والعاب</div>
+        <div class="credit-badge">✨ v1.0</div>
+      </div>
+      <div class="credit-holo"></div>
+    </div>
   </nav>
 
   <main class="content">
@@ -38,15 +49,14 @@
         <img id="mapImage" src="map-1.png" alt="خريطة القاعات">
         <canvas id="pathCanvas" aria-hidden="true"></canvas>
 
-        <!-- pin (دائرة صغيرة) -->
         <div id="pin" aria-hidden="true" title="موقع القاعة"></div>
-
-        <!-- animMarker: مثلث CSS -->
         <div id="animMarker" aria-hidden="true" title="مؤشر المسار"></div>
       </div>
     </div>
 
     <div class="form-container">
+      <div id="stairsSlot"></div>
+
       <input type="text" id="roomInput" list="roomList" placeholder="اكتب رقم القاعة" aria-label="رقم القاعة">
       <datalist id="roomList"></datalist>
 
@@ -59,12 +69,12 @@
     </div>
   </main>
 
-  <footer class="footer">© فهد القحطاني</footer>
+  <footer class="footer">الحقوق محفوظة© فهد القحطاني</footer>
 
   <!-- Home Info Modal -->
   <div id="homeInfoModal" class="modal" role="dialog" aria-hidden="true">
     <div class="modal-backdrop" id="homeBackdrop"></div>
-    <div class="modal-card" role="document" aria-labelledby="homeTitle">
+    <div class="modal-card fullscreen" role="document" aria-labelledby="homeTitle">
       <button id="closeHomeInfo" class="modal-close" aria-label="إغلاق">×</button>
       <h3 id="homeTitle">عن خريطة القاعات</h3>
       <pre id="homeTyping" class="typing-output" aria-live="polite"></pre>
@@ -75,7 +85,7 @@
   <!-- Email Modal -->
   <div id="emailModal" class="modal" role="dialog" aria-hidden="true">
     <div class="modal-backdrop" id="modalBackdrop"></div>
-    <div class="modal-card email-fancy" role="document" aria-labelledby="modalTitle">
+    <div class="modal-card email-fancy fullscreen" role="document" aria-labelledby="modalTitle">
       <button id="closeModal" class="modal-close" aria-label="إغلاق">×</button>
       <h3 id="modalTitle">استخراج البريد الجامعي</h3>
       <p class="hint email-hint">أدخل الرقم الجامعي لإظهار البريد الرسمي الخاص بك</p>
@@ -101,23 +111,13 @@
   <!-- Complaint Modal -->
   <div id="complaintModal" class="modal" role="dialog" aria-hidden="true">
     <div class="modal-backdrop" id="complaintBackdrop"></div>
-    <div class="modal-card" role="document" aria-labelledby="complaintTitle">
+    <div class="modal-card fullscreen" role="document" aria-labelledby="complaintTitle">
       <button id="closeComplaint" class="modal-close" aria-label="إغلاق">×</button>
       <h3 id="complaintTitle">✉️ تواصل معنا / رفع اقتراح</h3>
 
-      <!-- تعليمات واضحة -->
       <div class="complaint-instructions">
         <strong>ماذا تفعل هذه النافذة؟</strong>
         <p>ارسل لنا ملاحظة، شكوى، أو اقتراح لتحسين الخريطة. سيتلقاها فريق الدعم مباشرة.</p>
-        <strong>ماذا تملأ؟</strong>
-        <ul>
-          <li><strong>الاسم</strong> (اختياري) — لن نشاركه بدون إذنك.</li>
-          <li><strong>الرقم الجامعي</strong> — مطلوب لمتابعة الطلب.</li>
-          <li><strong>رقم التواصل</strong> — اختياري لكن يساعدنا بالرد.</li>
-          <li><strong>نص الشكوى/الاقتراح</strong> — اشرح المشكلة أو الفكرة باختصار واضح.</li>
-          <li><strong>صورة</strong> (اختياري) — إن وجدت، أرفق لقطة توضح المشكلة.</li>
-        </ul>
-        <div class="tiny-note">نصيحة: كلما كانت الرسالة واضحة ومرفقة بصورة إن أمكن، زادت فرصة الحل بسرعة.</div>
       </div>
 
       <div class="grid">
@@ -131,7 +131,7 @@
         <input id="complainPhone" type="text" placeholder="+9665...">
 
         <label for="complainMsg">نص الشكوى / الاقتراح</label>
-        <textarea id="complainMsg" rows="4" placeholder="اكتب الشكوى أو الاقتراح..."></textarea>
+        <textarea id="complainMsg" rows="6" placeholder="اكتب الشكوى أو الاقتراح..."></textarea>
 
         <label for="complainFile">إرفاق صورة (اختياري)</label>
         <input id="complainFile" type="file" accept="image/*">
@@ -152,14 +152,14 @@
       </div>
 
       <div id="complaintStatus" class="status"></div>
-      <div class="note">ملاحظة: هذا الإرسال يتم مباشرةً من المتصفح — يفضل وضع التوكن على السيرفر.</div>
+      <div class="note">ملاحظة / جميع المرفقات وا البيانات محفوظة وا سيتم التواصل معكم قريبا شكرا</div>
     </div>
   </div>
 
-  <!-- About Modal (من نحن) -->
+  <!-- About Modal -->
   <div id="aboutModal" class="modal" role="dialog" aria-hidden="true">
     <div class="modal-backdrop" id="aboutBackdrop"></div>
-    <div class="modal-card" role="document" aria-labelledby="aboutTitle">
+    <div class="modal-card fullscreen" role="document" aria-labelledby="aboutTitle">
       <button id="closeAbout" class="modal-close" aria-label="إغلاق">×</button>
       <h3 id="aboutTitle">من نحن</h3>
       <div class="typing-output about-text">
@@ -170,7 +170,7 @@
     </div>
   </div>
 
-  <!-- ملفات الـ data والسكريبت -->
+  <!-- external data + script -->
   <script src="rooms.js"></script>
   <script src="paths.rel.js"></script>
   <script src="script.js"></script>
