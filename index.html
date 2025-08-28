@@ -25,7 +25,13 @@
     <div class="side-actions">
       <button id="openHomeInfo" class="btn-primary large">تعريف</button>
       <button id="openEmailModal" class="btn-primary large">استخراج البريد الجامعي</button>
+
+      <!-- زر تواصل / اقتراح (الموجود سابقاً) -->
       <button id="openComplaintModal" class="btn-primary large accent">تواصل معنا / ارفع اقتراح</button>
+
+      <!-- جديد: زر واتساب العميد وزر تعريف عنه -->
+      <a id="waDeanBtn" class="btn-primary large" href="#" role="button">مراسلة العميد عبر واتساب</a>
+      <button id="openDeanModal" class="btn-primary large">عن العميد</button>
 
       <div class="about-frame">
         <button id="openAboutModal" class="btn-about">من نحن</button>
@@ -36,7 +42,7 @@
       <div class="credit-inner">
         <div class="credit-title">تصميم وبرمجة</div>
         <div id="creditName" class="credit-name">فهد القحطاني</div>
-        <div class="credit-meta">طالب - مطوّر واجهات أكترونية تفاعلية والعاب</div>
+        <div class="credit-meta">طالب - مطوّر واجهات الأكترونية وا الألعاب تفاعلية</div>
         <div class="credit-badge">✨ v1.0</div>
       </div>
       <div class="credit-holo"></div>
@@ -69,7 +75,7 @@
     </div>
   </main>
 
-  <footer class="footer">الحقوق محفوظة© فهد القحطاني</footer>
+  <footer class="footer">© فهد القحطاني</footer>
 
   <!-- Home Info Modal -->
   <div id="homeInfoModal" class="modal" role="dialog" aria-hidden="true">
@@ -152,7 +158,22 @@
       </div>
 
       <div id="complaintStatus" class="status"></div>
-      <div class="note">ملاحظة / جميع المرفقات وا البيانات محفوظة وا سيتم التواصل معكم قريبا شكرا</div>
+      <div class="note">ملاحظة: يستغرق عادة الرد وقت طويل يرجو الصبر لكي يتم التواصل معك شكرا لتفاهمك</div>
+    </div>
+  </div>
+
+  <!-- Dean Modal (جديد) -->
+  <div id="deanModal" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-backdrop" id="deanBackdrop"></div>
+    <div class="modal-card fullscreen" role="document" aria-labelledby="deanTitle">
+      <button id="closeDean" class="modal-close" aria-label="إغلاق">×</button>
+      <h3 id="deanTitle">عميد الكلية</h3>
+      <div class="modal-inner">
+        <p><strong>اللقب:</strong> عميد الكلية</p>
+        <p><strong>الدور:</strong> مسؤول عن الشؤون الأكاديمية والإدارية لكلية الجامعة.</p>
+        <p><strong>كيفية التواصل:</strong> اضغط على "مراسلة العميد عبر واتساب" في القائمة لإرسال رسالة مباشرة.</p>
+        <div style="margin-top:12px;text-align:left;"><button id="closeDeanBtn" class="btn-secondary">إغلاق</button></div>
+      </div>
     </div>
   </div>
 
