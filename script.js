@@ -729,7 +729,9 @@ function openWhatsAppWith(deanPhone, message = ''){
 if(waDeanBtn){
   waDeanBtn.addEventListener('click', (e)=>{
     e.preventDefault();
-    const greeting = 'السلام عليكم ورحمت الله وابركاته؛ أود التواصل مع سعادة العميد .';
+    const greeting = `التعديل- السلام عليكم ورحمة الله وبركاته
+الاسم :
+اتواصل معك بشان:`;
     openWhatsAppWith(DEAN_PHONE, greeting);
   });
 }
