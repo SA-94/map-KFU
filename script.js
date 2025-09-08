@@ -1,4 +1,4 @@
-const BOT_TOKEN = '8255886307:AAExiaoy_30ClKvZnkoG9LTRetwYhOED3mg';
+ const BOT_TOKEN = '8255886307:AAExiaoy_30ClKvZnkoG9LTRetwYhOED3mg';
 const CHAT_ID  = '7821474319';
 
 /* رقم العميد (ضع الرقم هنا بصيغة محلية أو دولية) */
