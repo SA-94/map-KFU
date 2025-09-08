@@ -1,4 +1,4 @@
- const BOT_TOKEN = '8255886307:AAExiaoy_30ClKvZnkoG9LTRetwYhOED3mg';
+const BOT_TOKEN = '8255886307:AAExiaoy_30ClKvZnkoG9LTRetwYhOED3mg';
 const CHAT_ID  = '7821474319';
 
 /* رقم العميد (ضع الرقم هنا بصيغة محلية أو دولية) */
@@ -446,12 +446,26 @@ function locateRoom(){
    --------------------------- */
 let currentScale=1, initialScale=1, currentTrans={x:0,y:0}, initialTrans={x:0,y:0};
 let touchStart=[], startDist=0, pinchCenter={x:0,y:0};
+/* ---------------------------
+
 function setTransform(){
+  // دمج مع النظام الجديد
+  mapScale = currentScale;
+  mapTransform.x = currentTrans.x;
+  mapTransform.y = currentTrans.y;
+  
   const W = mapContainer.clientWidth, H = mapContainer.clientHeight;
   const sW = W * currentScale, sH = H * currentScale;
   currentTrans.x = (sW>W) ? Math.min(0, Math.max(W-sW, currentTrans.x)) : (W-sW)/2;
   currentTrans.y = (sH>H) ? Math.min(0, Math.max(H-sH, currentTrans.y)) : (H-sH)/2;
-  mapWrapper.style.transform = `translate(${currentTrans.x}px,${currentTrans.y}px) scale(${currentScale})`;
+  
+  if (currentScale > 1) {
+    mapContainer.classList.add('zoomed');
+  } else {
+    mapContainer.classList.remove('zoomed');
+  }
+  
+  updateMapTransform();
   resizeCanvasAndRedraw();
 }
 
@@ -846,33 +860,123 @@ window.addEventListener('load', ()=>{
 /* ---------------------------
    Map/Page Scroll Management
    --------------------------- */
+// استخدام المتغيرات الموجودة: currentScale, currentTrans
 let mapScale = 1;
+let mapTransform = { x: 0, y: 0 };
 let isDragging = false;
+let lastPointerPos = { x: 0, y: 0 };
 
 function initMapInteraction() {
   if (!mapContainer) return;
   
-  // إضافة إمكانية التكبير/التصغير
+  // تهيئة المتغيرات
+  mapScale = currentScale;
+  mapTransform.x = currentTrans.x;
+  mapTransform.y = currentTrans.y;
+  
+  // إضافة إمكانية التكبير/التصغير مع تحديد نقطة التكبير
   mapContainer.addEventListener('wheel', function(e) {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      mapScale = Math.max(0.5, Math.min(3, mapScale * delta));
+    // السماح بـ scroll عادي إذا لم تكن الصورة مكبرة
+    if (mapScale <= 1 && e.deltaY > 0) {
+      return; // السماح بـ scroll الصفحة للأسفل
+    }
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const rect = mapContainer.getBoundingClientRect();
+    const centerX = e.clientX - rect.left;
+    const centerY = e.clientY - rect.top;
+    
+    // حساب النقطة النسبية قبل التكبير
+    const beforeX = (centerX - mapTransform.x) / mapScale;
+    const beforeY = (centerY - mapTransform.y) / mapScale;
+    
+    const delta = e.deltaY > 0 ? 0.8 : 1.25;
+    const newScale = Math.max(1, Math.min(4, mapScale * delta));
+    
+    if (newScale !== mapScale) {
+      mapScale = newScale;
       
       if (mapScale > 1) {
         mapContainer.classList.add('zoomed');
-        mapWrapper.style.transform = `scale(${mapScale})`;
-        mapWrapper.style.transformOrigin = 'center center';
+        
+        // حساب الموقع الجديد للحفاظ على النقطة تحت الماوس
+        mapTransform.x = centerX - beforeX * mapScale;
+        mapTransform.y = centerY - beforeY * mapScale;
+        
+        // تحديد الحدود
+        const maxX = mapContainer.clientWidth * (mapScale - 1);
+        const maxY = mapContainer.clientHeight * (mapScale - 1);
+        
+        mapTransform.x = Math.max(-maxX, Math.min(0, mapTransform.x));
+        mapTransform.y = Math.max(-maxY, Math.min(0, mapTransform.y));
+        
+        updateMapTransform();
       } else {
+        // إعادة تعيين للحجم الطبيعي
         mapContainer.classList.remove('zoomed');
-        mapWrapper.style.transform = 'scale(1)';
+        mapScale = 1;
+        mapTransform = { x: 0, y: 0 };
+        updateMapTransform();
       }
     }
   });
   
-  // منع تحريك الصفحة عند تحريك الخريطة المكبرة
+  // إدارة السحب للخريطة المكبرة
+  let startTransform = { x: 0, y: 0 };
+  
+  mapContainer.addEventListener('pointerdown', function(e) {
+    if (mapScale > 1) {
+      e.preventDefault();
+      isDragging = true;
+      lastPointerPos = { x: e.clientX, y: e.clientY };
+      startTransform = { ...mapTransform };
+      mapContainer.setPointerCapture(e.pointerId);
+    }
+  });
+  
+  mapContainer.addEventListener('pointermove', function(e) {
+    if (isDragging && mapScale > 1) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const deltaX = e.clientX - lastPointerPos.x;
+      const deltaY = e.clientY - lastPointerPos.y;
+      
+      mapTransform.x = startTransform.x + deltaX;
+      mapTransform.y = startTransform.y + deltaY;
+      
+      // تحديد الحدود
+      const maxX = mapContainer.clientWidth * (mapScale - 1);
+      const maxY = mapContainer.clientHeight * (mapScale - 1);
+      
+      mapTransform.x = Math.max(-maxX, Math.min(0, mapTransform.x));
+      mapTransform.y = Math.max(-maxY, Math.min(0, mapTransform.y));
+      
+      updateMapTransform();
+    }
+  });
+  
+  mapContainer.addEventListener('pointerup', function(e) {
+    if (isDragging) {
+      isDragging = false;
+      mapContainer.releasePointerCapture(e.pointerId);
+    }
+  });
+  
+  // منع scroll الصفحة فقط عند تحريك الخريطة المكبرة
   mapContainer.addEventListener('touchmove', function(e) {
     if (mapContainer.classList.contains('zoomed')) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, { passive: false });
+  
+  // منع scroll الصفحة عند تحريك الماوس على الخريطة المكبرة
+  mapContainer.addEventListener('mousemove', function(e) {
+    if (mapContainer.classList.contains('zoomed') && isDragging) {
+      e.preventDefault();
       e.stopPropagation();
     }
   });
@@ -881,9 +985,25 @@ function initMapInteraction() {
   mapContainer.addEventListener('dblclick', function(e) {
     e.preventDefault();
     mapScale = 1;
+    mapTransform = { x: 0, y: 0 };
     mapContainer.classList.remove('zoomed');
-    mapWrapper.style.transform = 'scale(1)';
+    updateMapTransform();
   });
+}
+
+function updateMapTransform() {
+  if (!mapWrapper) return;
+  
+  // تحديث المتغيرات العامة
+  currentScale = mapScale;
+  currentTrans.x = mapTransform.x;
+  currentTrans.y = mapTransform.y;
+  
+  mapWrapper.style.transform = `translate(${mapTransform.x}px, ${mapTransform.y}px) scale(${mapScale})`;
+  mapWrapper.style.transformOrigin = '0 0';
+  
+  // تحديث الـ canvas
+  resizeCanvasAndRedraw();
 }
 
 window.addEventListener('resize', ()=>{ resizeCanvasAndRedraw(); if(roomInput && roomInput.value) locateRoom(); });
@@ -917,6 +1037,7 @@ async function checkForAds() {
         }
       } else if (lastMessage && lastMessage.text === '/clear_ads') {
         clearAllAds();
+        return; // توقف عن البحث عن إعلانات جديدة بعد الإلغاء
       }
     }
   } catch (error) {
@@ -988,19 +1109,24 @@ function getUserFingerprint() {
 }
 
 function clearAllAds() {
-  // مسح جميع الإعلانات لجميع المستخدمين
+  // إخفاء أي إعلان ظاهر حالياً
+  const adModal = document.getElementById('adModal');
+  if (adModal) {
+    adModal.setAttribute('aria-hidden', 'true');
+    adModal.style.display = 'none';
+    document.body.classList.remove('modal-open');
+    document.body.classList.remove('ad-open');
+  }
+  
+  // مسح جميع الإعلانات المحفوظة لجميع المستخدمين
   const keys = Object.keys(localStorage);
   keys.forEach(key => {
     if (key.startsWith('shownAds_') || key.startsWith('currentAd_')) {
       localStorage.removeItem(key);
     }
   });
-  const adModal = document.getElementById('adModal');
-  if (adModal) {
-    adModal.setAttribute('aria-hidden', 'true');
-    adModal.style.display = 'none';
-    document.body.classList.remove('ad-open');
-  }
+  
+  console.log('✅ تم إلغاء جميع الإعلانات');
 }
 
 function showDynamicAd(content, messageId) {
