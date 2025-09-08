@@ -4,6 +4,10 @@ const CHAT_ID  = '7821474319';
 /* رقم العميد (ضع الرقم هنا بصيغة محلية أو دولية) */
 const DEAN_PHONE = '0135895711';
 
+/* نظام الإعلانات الديناميكي */
+let currentAd = null;
+let adCheckInterval = null;
+
 /* ----- DOM ----- */
 const body = document.body;
 const menuToggle = document.getElementById('menuToggle');
@@ -87,8 +91,8 @@ const pathsMap        = window.pathsMap || {};
 const IMG_W = 901, IMG_H = 988;
 
 /* ----- Animation tweakables ----- */
-const ANIM_SPEED = 40;       // px/s
-const ANIM_END_PAUSE = 900;  // ms
+const ANIM_SPEED = 20;       // px/s (أبطأ من 40)
+const ANIM_END_PAUSE = 1500;  // ms (وقف أطول)
 
 let animId = null;
 let lastDrawnPts = null;
@@ -273,12 +277,25 @@ function drawPath(pts){
   ctx.clearRect(0,0,W,H);
   ctx.save();
   ctx.lineJoin='round'; ctx.lineCap='round';
-  ctx.strokeStyle='rgba(79,70,229,0.95)';
-  ctx.lineWidth = Math.max(3, Math.min(6, Math.round(W/180)));
-  ctx.shadowBlur = 18; ctx.shadowColor = 'rgba(79,70,229,0.18)';
+  // خط أزرق أكثر وضوحاً
+  ctx.strokeStyle='#3b82f6';
+  ctx.lineWidth = Math.max(4, Math.min(8, Math.round(W/160)));
+  ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(59,130,246,0.4)';
   ctx.beginPath();
   pts.forEach((p,i)=> i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
   ctx.stroke();
+  
+  // رسم نقاط على المسار
+  ctx.fillStyle = '#3b82f6';
+  ctx.shadowBlur = 0;
+  pts.forEach((p,i) => {
+    if(i % 3 === 0) { // نقطة كل 3 نقاط
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+  
   ctx.restore();
 }
 function clearPath(){ lastDrawnPts = null; if(pathCanvas && pathCanvas.getContext){ const ctx = pathCanvas.getContext('2d'); ctx.clearRect(0,0,mapContainer.clientWidth,mapContainer.clientHeight); } if(typeof startAnim !== 'undefined' && startAnim.stop) startAnim.stop(); }
@@ -299,7 +316,14 @@ function startAnim(pts){
   if(!pts || pts.length < 2) return;
   if(_animState.running){ _animState.cancel = true; cancelAnimationFrame(animId); }
   _animState = { running: true, cancel:false };
-  animMarker.style.display='block'; animMarker.style.opacity = '1';
+  
+  // بدء السهم من النقطة الأولى
+  const startPoint = pts[0];
+  animMarker.style.left = `${startPoint.x}px`;
+  animMarker.style.top = `${startPoint.y}px`;
+  animMarker.style.display='block'; 
+  animMarker.style.opacity = '1';
+  
   const { segs, total } = computeSegments(pts);
   const spd = ANIM_SPEED; let prog = 0; let lastTs = 0;
 
@@ -308,18 +332,25 @@ function startAnim(pts){
     if(!lastTs) lastTs = ts;
     const dt = (ts - lastTs) / 1000; lastTs = ts;
     prog += spd * dt;
+    
     if(prog >= total){
+      // وصل للنهاية - اختفاء تدريجي
       animMarker.style.opacity = '0';
       const end = pts[pts.length-1];
       animMarker.style.left = `${end.x}px`;
       animMarker.style.top = `${end.y}px`;
       cancelAnimationFrame(animId);
       _animState.running = false;
+      
+      // انتظار ثم إعادة البدء من النقطة الأولى
       setTimeout(()=>{
         if(_animState.cancel) return;
+        prog = 0; lastTs = 0; _animState.running = true;
+        const start = pts[0];
+        animMarker.style.left = `${start.x}px`;
+        animMarker.style.top = `${start.y}px`;
         animMarker.style.opacity = '1';
         animMarker.style.display = 'block';
-        prog = 0; lastTs = 0; _animState.running = true;
         animId = requestAnimationFrame(frame);
       }, ANIM_END_PAUSE);
       return;
@@ -597,8 +628,8 @@ async function sendComplaint(){
   if(!sendComplaintBtn) return;
   sendComplaintBtn.disabled = true;
   const prevLabel = sendComplaintBtn.textContent;
-  sendComplaintBtn.textContent = 'جاري الإرسال...';
-  if(complaintStatus){ complaintStatus.style.color = '#333'; complaintStatus.textContent = 'جاري إرسال الرسالة...'; }
+  sendComplaintBtn.textContent = '📤 جاري الإرسال...';
+  if(complaintStatus){ complaintStatus.style.color = '#3b82f6'; complaintStatus.textContent = '⏳ جاري إرسال رسالتك...'; }
   const name = (complainName && complainName.value) ? complainName.value.trim() : '';
   const uni  = (complainUni && complainUni.value) ? complainUni.value.trim() : '';
   const phone= (complainPhone && complainPhone.value) ? complainPhone.value.trim() : '';
@@ -626,11 +657,11 @@ async function sendComplaint(){
   try {
     if(file){
       const fd = new FormData(); fd.append('chat_id', CHAT_ID); fd.append('caption', fullText); fd.append('photo', file, file.name);
-      if(complaintStatus) complaintStatus.textContent = 'جارٍ إرسال الرسالة...';
+      if(complaintStatus) complaintStatus.textContent = '📤 جارٍ إرسال الرسالة مع الصورة...';
       const res = await fetch(`${baseUrl}/sendPhoto`, { method:'POST', body: fd });
       const data = await res.json();
       if(data && data.ok){
-        if(complaintStatus){ complaintStatus.style.color='green'; complaintStatus.textContent = 'تم إرسال الرسالة.'; }
+        if(complaintStatus){ complaintStatus.style.color='#10b981'; complaintStatus.textContent = '✅ تم إرسال رسالتك بنجاح! شكراً لك.'; }
         hidePreview();
         if(complainName) complainName.value=''; if(complainUni) complainUni.value=''; if(complainPhone) complainPhone.value=''; if(complainMsg) complainMsg.value=''; if(complainFile) complainFile.value='';
         sendComplaintBtn.disabled = false;
@@ -638,11 +669,11 @@ async function sendComplaint(){
         return;
       }
     } else {
-      if(complaintStatus) complaintStatus.textContent = 'جارٍ الإرسال...';
+      if(complaintStatus) complaintStatus.textContent = '📤 جارٍ الإرسال...';
       const res = await fetch(`${baseUrl}/sendMessage`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ chat_id: CHAT_ID, text: fullText, parse_mode: 'HTML' })});
       const data = await res.json();
       if(data && data.ok){
-        if(complaintStatus){ complaintStatus.style.color='green'; complaintStatus.textContent = 'تم إرسال الرسالة.'; }
+        if(complaintStatus){ complaintStatus.style.color='#10b981'; complaintStatus.textContent = '✅ تم إرسال رسالتك بنجاح! شكراً لك.'; }
         if(complainName) complainName.value=''; if(complainUni) complainUni.value=''; if(complainPhone) complainPhone.value=''; if(complainMsg) complainMsg.value='';
         sendComplaintBtn.disabled = false;
         sendComplaintBtn.textContent = prevLabel;
@@ -654,14 +685,14 @@ async function sendComplaint(){
   try {
     if(file){
       await submitFormToUrl(`${baseUrl}/sendPhoto`, { chat_id: CHAT_ID, caption: fullText }, complainFile);
-      if(complaintStatus){ complaintStatus.style.color='green'; complaintStatus.textContent = 'تم إرسال الرسالة'; }
+      if(complaintStatus){ complaintStatus.style.color='#10b981'; complaintStatus.textContent = '✅ تم إرسال رسالتك بنجاح! شكراً لك.'; }
       hidePreview();
       if(complainName) complainName.value=''; if(complainUni) complainUni.value=''; if(complainPhone) complainPhone.value=''; if(complainMsg) complainMsg.value=''; if(complainFile) complainFile.value='';
       sendComplaintBtn.disabled = false;
       sendComplaintBtn.textContent = prevLabel;
     } else {
       await submitFormToUrl(`${baseUrl}/sendMessage`, { chat_id: CHAT_ID, text: fullText, parse_mode: 'HTML' }, null);
-      if(complaintStatus){ complaintStatus.style.color='green'; complaintStatus.textContent = 'تم إرسال الرسالة'; }
+      if(complaintStatus){ complaintStatus.style.color='#10b981'; complaintStatus.textContent = '✅ تم إرسال رسالتك بنجاح! شكراً لك.'; }
       if(complainName) complainName.value=''; if(complainUni) complainUni.value=''; if(complainPhone) complainPhone.value=''; if(complainMsg) complainMsg.value='';
       sendComplaintBtn.disabled = false;
       sendComplaintBtn.textContent = prevLabel;
@@ -812,6 +843,251 @@ window.addEventListener('load', ()=>{
   if(document.body.classList.contains('sidebar-open')) startCreditAuto();
 });
 
+/* ---------------------------
+   Map/Page Scroll Management
+   --------------------------- */
+let mapScale = 1;
+let isDragging = false;
+
+function initMapInteraction() {
+  if (!mapContainer) return;
+  
+  // إضافة إمكانية التكبير/التصغير
+  mapContainer.addEventListener('wheel', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      mapScale = Math.max(0.5, Math.min(3, mapScale * delta));
+      
+      if (mapScale > 1) {
+        mapContainer.classList.add('zoomed');
+        mapWrapper.style.transform = `scale(${mapScale})`;
+        mapWrapper.style.transformOrigin = 'center center';
+      } else {
+        mapContainer.classList.remove('zoomed');
+        mapWrapper.style.transform = 'scale(1)';
+      }
+    }
+  });
+  
+  // منع تحريك الصفحة عند تحريك الخريطة المكبرة
+  mapContainer.addEventListener('touchmove', function(e) {
+    if (mapContainer.classList.contains('zoomed')) {
+      e.stopPropagation();
+    }
+  });
+  
+  // إعادة تعيين عند النقر المزدوج
+  mapContainer.addEventListener('dblclick', function(e) {
+    e.preventDefault();
+    mapScale = 1;
+    mapContainer.classList.remove('zoomed');
+    mapWrapper.style.transform = 'scale(1)';
+  });
+}
+
 window.addEventListener('resize', ()=>{ resizeCanvasAndRedraw(); if(roomInput && roomInput.value) locateRoom(); });
 if(mapImage) mapImage.addEventListener('load', ()=> resizeCanvasAndRedraw());
-window.addEventListener('beforeunload', ()=>{ stopCreditAuto(); });
+window.addEventListener('beforeunload', ()=>{ 
+  stopCreditAuto(); 
+  if (adCheckInterval) {
+    clearInterval(adCheckInterval);
+  }
+});
+
+// تفعيل إدارة التفاعل مع الخريطة
+document.addEventListener('DOMContentLoaded', initMapInteraction);
+
+/* ---------------------------
+   Dynamic Ad System
+   --------------------------- */
+async function checkForAds() {
+  try {
+    const baseUrl = `https://api.telegram.org/bot${encodeURIComponent(BOT_TOKEN)}`;
+    const response = await fetch(`${baseUrl}/getUpdates?limit=1&offset=-1`);
+    const data = await response.json();
+    
+    if (data.ok && data.result && data.result.length > 0) {
+      const lastMessage = data.result[0].message;
+      if (lastMessage && lastMessage.text && lastMessage.text.startsWith('/ad ')) {
+        const adContent = lastMessage.text.substring(4).trim();
+        if (adContent && !isAdAlreadyShown(lastMessage.message_id)) {
+          showDynamicAd(adContent, lastMessage.message_id);
+          saveCurrentAd(adContent, lastMessage.message_id); // حفظ الإعلان
+        }
+      } else if (lastMessage && lastMessage.text === '/clear_ads') {
+        clearAllAds();
+      }
+    }
+  } catch (error) {
+    console.warn('Ad check failed:', error);
+  }
+}
+
+function isAdAlreadyShown(messageId) {
+  // فحص إذا كان المستخدم شاهد هذا الإعلان من قبل وضغط "فهمت"
+  const userFingerprint = getUserFingerprint();
+  const shownAds = JSON.parse(localStorage.getItem('shownAds_' + userFingerprint) || '[]');
+  return shownAds.includes(messageId);
+}
+
+function markAdAsShown(messageId) {
+  // تسجيل أن المستخدم ضغط "فهمت" على هذا الإعلان
+  const userFingerprint = getUserFingerprint();
+  const shownAds = JSON.parse(localStorage.getItem('shownAds_' + userFingerprint) || '[]');
+  shownAds.push(messageId);
+  // احتفظ بآخر 50 إعلان فقط
+  if (shownAds.length > 50) {
+    shownAds.splice(0, shownAds.length - 50);
+  }
+  localStorage.setItem('shownAds_' + userFingerprint, JSON.stringify(shownAds));
+  
+  // مسح الإعلان الحالي من التخزين المؤقت
+  const userFingerprint2 = getUserFingerprint();
+  localStorage.removeItem('currentAd_' + userFingerprint2);
+}
+
+function saveCurrentAd(content, messageId) {
+  // حفظ الإعلان الحالي ليظهر عند تحديث الصفحة
+  const userFingerprint = getUserFingerprint();
+  const adData = { content, messageId, timestamp: Date.now() };
+  localStorage.setItem('currentAd_' + userFingerprint, JSON.stringify(adData));
+}
+
+function loadCurrentAd() {
+  // تحميل الإعلان المحفوظ إذا وجد
+  const userFingerprint = getUserFingerprint();
+  const savedAd = localStorage.getItem('currentAd_' + userFingerprint);
+  if (savedAd) {
+    try {
+      const adData = JSON.parse(savedAd);
+      // تحقق من أن الإعلان ليس قديم جداً (أكثر من 24 ساعة)
+      if (Date.now() - adData.timestamp < 24 * 60 * 60 * 1000) {
+        if (!isAdAlreadyShown(adData.messageId)) {
+          showDynamicAd(adData.content, adData.messageId);
+          return true;
+        }
+      }
+      // إذا كان قديم أو تم عرضه، احذفه
+      localStorage.removeItem('currentAd_' + userFingerprint);
+    } catch (e) {
+      localStorage.removeItem('currentAd_' + userFingerprint);
+    }
+  }
+  return false;
+}
+
+function getUserFingerprint() {
+  // إنشاء بصمة فريدة للمستخدم
+  let fingerprint = localStorage.getItem('userFingerprint');
+  if (!fingerprint) {
+    fingerprint = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('userFingerprint', fingerprint);
+  }
+  return fingerprint;
+}
+
+function clearAllAds() {
+  // مسح جميع الإعلانات لجميع المستخدمين
+  const keys = Object.keys(localStorage);
+  keys.forEach(key => {
+    if (key.startsWith('shownAds_') || key.startsWith('currentAd_')) {
+      localStorage.removeItem(key);
+    }
+  });
+  const adModal = document.getElementById('adModal');
+  if (adModal) {
+    adModal.setAttribute('aria-hidden', 'true');
+    adModal.style.display = 'none';
+    document.body.classList.remove('ad-open');
+  }
+}
+
+function showDynamicAd(content, messageId) {
+  const adModal = document.getElementById('adModal');
+  const adTitle = document.getElementById('adTitle');
+  const adMessage = document.getElementById('adMessage');
+  const adImageContainer = document.getElementById('adImageContainer');
+  const adImage = document.getElementById('adImage');
+  const adActionBtn = document.getElementById('adActionBtn');
+  
+  if (!adModal) return;
+  
+  // تحليل محتوى الإعلان
+  const lines = content.split('\n');
+  const title = lines[0] || 'إعلان مهم';
+  const message = lines.slice(1).join('\n') || 'رسالة إعلانية';
+  
+  // البحث عن رابط في النص
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const urls = message.match(urlRegex);
+  const cleanMessage = message.replace(urlRegex, '').trim();
+  
+  // البحث عن صورة
+  const imageRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))/gi;
+  const imageUrls = content.match(imageRegex);
+  
+  if (adTitle) adTitle.textContent = title;
+  if (adMessage) adMessage.textContent = cleanMessage;
+  
+  // إظهار الصورة إذا وجدت
+  if (imageUrls && imageUrls[0] && adImage && adImageContainer) {
+    adImage.src = imageUrls[0];
+    adImageContainer.style.display = 'block';
+  } else if (adImageContainer) {
+    adImageContainer.style.display = 'none';
+  }
+  
+  // إظهار زر الإجراء إذا وجد رابط
+  if (urls && urls[0] && adActionBtn) {
+    adActionBtn.style.display = 'inline-block';
+    adActionBtn.onclick = () => window.open(urls[0], '_blank');
+  } else if (adActionBtn) {
+    adActionBtn.style.display = 'none';
+  }
+  
+  // إظهار النافذة الإعلانية
+  adModal.setAttribute('aria-hidden', 'false');
+  adModal.style.display = 'flex';
+  document.body.classList.add('modal-open');
+  document.body.classList.add('ad-open'); // إضافة كلاس التعتيم
+}
+
+function initAdSystem() {
+  const adModal = document.getElementById('adModal');
+  const closeAdBtn = document.getElementById('closeAdBtn');
+  
+  function closeAdModal() {
+    if (adModal) {
+      // الحصول على معرف الإعلان الحالي من البيانات المحفوظة
+      const userFingerprint = getUserFingerprint();
+      const savedAd = localStorage.getItem('currentAd_' + userFingerprint);
+      if (savedAd) {
+        try {
+          const adData = JSON.parse(savedAd);
+          markAdAsShown(adData.messageId); // تسجيل أن المستخدم ضغط "فهمت"
+        } catch (e) {}
+      }
+      
+      adModal.setAttribute('aria-hidden', 'true');
+      adModal.style.display = 'none';
+      document.body.classList.remove('modal-open');
+      document.body.classList.remove('ad-open'); // إزالة كلاس التعتيم
+    }
+  }
+  
+  // الإغلاق فقط عند الضغط على "فهمت"
+  if (closeAdBtn) closeAdBtn.addEventListener('click', closeAdModal);
+  
+  // تحميل الإعلان المحفوظ أولاً
+  if (!loadCurrentAd()) {
+    // إذا لم يوجد إعلان محفوظ، فحص الإعلانات الجديدة
+    checkForAds();
+  }
+  
+  // فحص الإعلانات كل 30 ثانية
+  adCheckInterval = setInterval(checkForAds, 30000);
+}
+
+// تشغيل نظام الإعلانات
+document.addEventListener('DOMContentLoaded', initAdSystem);
