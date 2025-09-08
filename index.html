@@ -188,11 +188,30 @@
     </div>
   </div>
 
+  <!-- Dynamic Ad Modal -->
+  <div id="adModal" class="modal ad-modal" role="dialog" aria-hidden="true" aria-modal="true">
+    <div class="modal-backdrop" id="adBackdrop"></div>
+    <div class="modal-card ad-card animated" role="document">
+      <div class="ad-content">
+        <div class="ad-icon">📢</div>
+        <div class="ad-title" id="adTitle">إعلان مهم</div>
+        <div class="ad-message" id="adMessage">رسالة الإعلان ستظهر هنا</div>
+        <div class="ad-image-container" id="adImageContainer" style="display:none;">
+          <img id="adImage" src="" alt="صورة الإعلان">
+        </div>
+        <div class="ad-actions">
+          <button id="adActionBtn" class="btn-primary ad-btn" style="display:none;">اضغط هنا</button>
+          <button id="closeAdBtn" class="btn-secondary ad-btn-close">فهمت</button>
+        </div>
+      </div>
+      <div class="ad-sparkles">✨</div>
+    </div>
+  </div>
+
   <!-- external data + scripts (مضمّنة مرة واحدة) -->
   <script src="rooms.js" defer></script>
   <script src="paths.rel.js" defer></script>
   <script src="script.js" defer></script>
 </body>
 </html>
-
 
