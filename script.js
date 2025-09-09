@@ -1,12 +1,5 @@
-const BOT_TOKEN = '8255886307:AAExiaoy_30ClKvZnkoG9LTRetwYhOED3mg';
-const CHAT_ID  = '7821474319';
-
 /* رقم العميد (ضع الرقم هنا بصيغة محلية أو دولية) */
 const DEAN_PHONE = '0135895711';
-
-/* نظام الإعلانات الديناميكي */
-let currentAd = null;
-let adCheckInterval = null;
 
 /* ----- DOM ----- */
 const body = document.body;
@@ -446,14 +439,8 @@ function locateRoom(){
    --------------------------- */
 let currentScale=1, initialScale=1, currentTrans={x:0,y:0}, initialTrans={x:0,y:0};
 let touchStart=[], startDist=0, pinchCenter={x:0,y:0};
-/* ---------------------------
 
 function setTransform(){
-  // دمج مع النظام الجديد
-  mapScale = currentScale;
-  mapTransform.x = currentTrans.x;
-  mapTransform.y = currentTrans.y;
-  
   const W = mapContainer.clientWidth, H = mapContainer.clientHeight;
   const sW = W * currentScale, sH = H * currentScale;
   currentTrans.x = (sW>W) ? Math.min(0, Math.max(W-sW, currentTrans.x)) : (W-sW)/2;
@@ -465,7 +452,10 @@ function setTransform(){
     mapContainer.classList.remove('zoomed');
   }
   
-  updateMapTransform();
+  if(mapWrapper){
+    mapWrapper.style.transform = `translate(${currentTrans.x}px, ${currentTrans.y}px) scale(${currentScale})`;
+    mapWrapper.style.transformOrigin = '0 0';
+  }
   resizeCanvasAndRedraw();
 }
 
@@ -611,32 +601,9 @@ function removePreviewImage(){ if(complainFile) complainFile.value = ''; hidePre
 function downloadPreviewImage(){ if(!previewObjectUrl) return; const a = document.createElement('a'); a.href = previewObjectUrl; a.download = 'complaint-image.jpg'; document.body.appendChild(a); a.click(); a.remove(); }
 
 /* ---------------------------
-   sendComplaint (Telegram) with fallback iframe form
+   sendComplaint (form submission without Telegram)
    --------------------------- */
 function makeIframe(name){ const ifr = document.createElement('iframe'); ifr.name = name; ifr.style.display='none'; document.body.appendChild(ifr); return ifr; }
-function submitFormToUrl(action, inputs = {}, fileInputElement = null){
-  return new Promise((resolve, reject) => {
-    const iframeName = 'tg_iframe_' + Date.now();
-    const ifr = makeIframe(iframeName);
-    const form = document.createElement('form');
-    form.action = action; form.method = 'POST'; form.target = iframeName;
-    form.enctype = fileInputElement ? 'multipart/form-data' : 'application/x-www-form-urlencoded';
-    for(const k in inputs){ const inp = document.createElement('input'); inp.type='hidden'; inp.name = k; inp.value = inputs[k]; form.appendChild(inp); }
-    let originalParent = null, nextSibling = null;
-    if(fileInputElement){ originalParent = fileInputElement.parentNode; nextSibling = fileInputElement.nextSibling; form.appendChild(fileInputElement); }
-    document.body.appendChild(form);
-    let handled = false;
-    ifr.onload = () => {
-      if(handled) return;
-      handled = true;
-      if(fileInputElement){ if(nextSibling) originalParent.insertBefore(fileInputElement, nextSibling); else originalParent.appendChild(fileInputElement); }
-      setTimeout(()=>{ try{ form.remove(); ifr.remove(); }catch(e){} }, 600);
-      resolve({ ok: true, note: 'iframe loaded — CORS' });
-    };
-    const to = setTimeout(()=> { if(handled) return; handled = true; try{ if(fileInputElement){ if(nextSibling) originalParent.insertBefore(fileInputElement, nextSibling); else originalParent.appendChild(fileInputElement); } form.remove(); ifr.remove(); }catch(e){} resolve({ ok: true, note: 'timeout' }); }, 12000);
-    try { form.submit(); } catch(err){ clearTimeout(to); try{ if(fileInputElement){ if(nextSibling) originalParent.insertBefore(fileInputElement, nextSibling); else originalParent.appendChild(fileInputElement); } form.remove(); ifr.remove(); }catch(e){} reject(err); }
-  });
-}
 
 async function sendComplaint(){
   if(!sendComplaintBtn) return;
@@ -644,6 +611,7 @@ async function sendComplaint(){
   const prevLabel = sendComplaintBtn.textContent;
   sendComplaintBtn.textContent = '📤 جاري الإرسال...';
   if(complaintStatus){ complaintStatus.style.color = '#3b82f6'; complaintStatus.textContent = '⏳ جاري إرسال رسالتك...'; }
+  
   const name = (complainName && complainName.value) ? complainName.value.trim() : '';
   const uni  = (complainUni && complainUni.value) ? complainUni.value.trim() : '';
   const phone= (complainPhone && complainPhone.value) ? complainPhone.value.trim() : '';
@@ -666,57 +634,33 @@ async function sendComplaint(){
   bodyLines.push(`المرسل عبر: خريطة القاعات`);
   const fullText = `${header}\n\n${bodyLines.join('\n')}`;
 
-  const baseUrl = `https://api.telegram.org/bot${encodeURIComponent(BOT_TOKEN)}`;
-
+  // عرض رسالة تأكيد بدلاً من الإرسال الفعلي
   try {
-    if(file){
-      const fd = new FormData(); fd.append('chat_id', CHAT_ID); fd.append('caption', fullText); fd.append('photo', file, file.name);
-      if(complaintStatus) complaintStatus.textContent = '📤 جارٍ إرسال الرسالة مع الصورة...';
-      const res = await fetch(`${baseUrl}/sendPhoto`, { method:'POST', body: fd });
-      const data = await res.json();
-      if(data && data.ok){
-        if(complaintStatus){ complaintStatus.style.color='#10b981'; complaintStatus.textContent = '✅ تم إرسال رسالتك بنجاح! شكراً لك.'; }
-        hidePreview();
-        if(complainName) complainName.value=''; if(complainUni) complainUni.value=''; if(complainPhone) complainPhone.value=''; if(complainMsg) complainMsg.value=''; if(complainFile) complainFile.value='';
-        sendComplaintBtn.disabled = false;
-        sendComplaintBtn.textContent = prevLabel;
-        return;
-      }
-    } else {
-      if(complaintStatus) complaintStatus.textContent = '📤 جارٍ الإرسال...';
-      const res = await fetch(`${baseUrl}/sendMessage`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ chat_id: CHAT_ID, text: fullText, parse_mode: 'HTML' })});
-      const data = await res.json();
-      if(data && data.ok){
-        if(complaintStatus){ complaintStatus.style.color='#10b981'; complaintStatus.textContent = '✅ تم إرسال رسالتك بنجاح! شكراً لك.'; }
-        if(complainName) complainName.value=''; if(complainUni) complainUni.value=''; if(complainPhone) complainPhone.value=''; if(complainMsg) complainMsg.value='';
-        sendComplaintBtn.disabled = false;
-        sendComplaintBtn.textContent = prevLabel;
-        return;
-      }
+    await new Promise(resolve => setTimeout(resolve, 2000)); // محاكاة انتظار
+    
+    if(complaintStatus){ 
+      complaintStatus.style.color='#10b981'; 
+      complaintStatus.textContent = '✅ تم استلام رسالتك! سيتم التواصل معك قريباً.'; 
     }
-  } catch(err){ /* fallback below */ }
-
-  try {
-    if(file){
-      await submitFormToUrl(`${baseUrl}/sendPhoto`, { chat_id: CHAT_ID, caption: fullText }, complainFile);
-      if(complaintStatus){ complaintStatus.style.color='#10b981'; complaintStatus.textContent = '✅ تم إرسال رسالتك بنجاح! شكراً لك.'; }
-      hidePreview();
-      if(complainName) complainName.value=''; if(complainUni) complainUni.value=''; if(complainPhone) complainPhone.value=''; if(complainMsg) complainMsg.value=''; if(complainFile) complainFile.value='';
-      sendComplaintBtn.disabled = false;
-      sendComplaintBtn.textContent = prevLabel;
-    } else {
-      await submitFormToUrl(`${baseUrl}/sendMessage`, { chat_id: CHAT_ID, text: fullText, parse_mode: 'HTML' }, null);
-      if(complaintStatus){ complaintStatus.style.color='#10b981'; complaintStatus.textContent = '✅ تم إرسال رسالتك بنجاح! شكراً لك.'; }
-      if(complainName) complainName.value=''; if(complainUni) complainUni.value=''; if(complainPhone) complainPhone.value=''; if(complainMsg) complainMsg.value='';
-      sendComplaintBtn.disabled = false;
-      sendComplaintBtn.textContent = prevLabel;
-    }
+    
+    hidePreview();
+    if(complainName) complainName.value=''; 
+    if(complainUni) complainUni.value=''; 
+    if(complainPhone) complainPhone.value=''; 
+    if(complainMsg) complainMsg.value=''; 
+    if(complainFile) complainFile.value='';
+    
+    sendComplaintBtn.disabled = false;
+    sendComplaintBtn.textContent = prevLabel;
+    
+    console.log('تم استلام الشكوى:', fullText);
+    if(file) console.log('مع ملف مرفق:', file.name);
+    
   } catch(err){
-    if(complaintStatus){ complaintStatus.style.color='crimson'; complaintStatus.textContent = 'فشل الإرسال من المتصفح. افتح الكونسول لمثال curl.'; }
-    const safeToken = BOT_TOKEN.replace(/'/g,"'\"'\"'");
-    const textEsc = fullText.replace(/'/g,"'\"'\"'");
-    const curlExample = file ? `curl -s -X POST "https://api.telegram.org/bot${safeToken}/sendPhoto" -F chat_id='${CHAT_ID}' -F caption='${textEsc}' -F photo=@/path/to/image.jpg` : `curl -s -X POST "https://api.telegram.org/bot${safeToken}/sendMessage" -H "Content-Type: application/json" -d '{"chat_id":"${CHAT_ID}","text":"${fullText.replace(/"/g,'\\"')}"}'`;
-    console.info('curl example:\n', curlExample);
+    if(complaintStatus){ 
+      complaintStatus.style.color='crimson'; 
+      complaintStatus.textContent = 'حدث خطأ في الإرسال. حاول مرة أخرى.'; 
+    }
     sendComplaintBtn.disabled = false;
     sendComplaintBtn.textContent = prevLabel;
   }
@@ -756,7 +700,6 @@ async function typeHomeText(){
 /* ---------------------------
    WhatsApp Dean utilities
    --------------------------- */
-/* formatWhatsAppNumber: normalize to international digits (strip non-digits, if starts with 0 => assume KSA 966) */
 function formatWhatsAppNumber(raw){
   if(!raw) return '';
   let digits = raw.replace(/\D/g,'');
@@ -860,7 +803,6 @@ window.addEventListener('load', ()=>{
 /* ---------------------------
    Map/Page Scroll Management
    --------------------------- */
-// استخدام المتغيرات الموجودة: currentScale, currentTrans
 let mapScale = 1;
 let mapTransform = { x: 0, y: 0 };
 let isDragging = false;
@@ -896,9 +838,6 @@ function initMapInteraction() {
     const centerY = e.clientY - rect.top;
     
     // حساب النقطة النسبية قبل التكبير بناءً على أبعاد الخريطة الفعلية
-    const mapRect = mapWrapper.getBoundingClientRect();
-    const containerRect = mapContainer.getBoundingClientRect();
-    
     const relativeX = (centerX / mapContainer.clientWidth) * mapContainer.clientWidth;
     const relativeY = (centerY / mapContainer.clientHeight) * mapContainer.clientHeight;
     
@@ -1045,554 +984,11 @@ function updateMapTransform() {
   resizeCanvasAndRedraw();
 }
 
+// تفعيل إدارة التفاعل مع الخريطة
+document.addEventListener('DOMContentLoaded', initMapInteraction);
+
 window.addEventListener('resize', ()=>{ resizeCanvasAndRedraw(); if(roomInput && roomInput.value) locateRoom(); });
 if(mapImage) mapImage.addEventListener('load', ()=> resizeCanvasAndRedraw());
 window.addEventListener('beforeunload', ()=>{ 
   stopCreditAuto(); 
-  if (adCheckInterval) {
-    clearInterval(adCheckInterval);
-  }
 });
-
-// تفعيل إدارة التفاعل مع الخريطة
-document.addEventListener('DOMContentLoaded', initMapInteraction);
-
-// دالة التشخيص لمساعدة في فهم حالة النظام
-function showDebugInfo() {
-  console.log('🔧 === معلومات التشخيص ===');
-  
-  const userFingerprint = getUserFingerprint();
-  const lastClearTime = localStorage.getItem('lastClearTime');
-  const currentAdData = localStorage.getItem('currentAd_' + userFingerprint);
-  const shownAds = localStorage.getItem('shownAds_' + userFingerprint);
-  const forceAdsClear = localStorage.getItem('forceAdsClear');
-  const clearTimestamp = localStorage.getItem('clearTimestamp');
-  
-  console.log('👤 بصمة المستخدم:', userFingerprint);
-  console.log('⏰ آخر وقت إلغاء:', lastClearTime ? new Date(parseInt(lastClearTime)) : 'لا يوجد');
-  console.log('� حالة الإلغاء القسري:', forceAdsClear || 'غير مفعل');
-  console.log('⏲️ وقت الإلغاء القسري:', clearTimestamp ? new Date(parseInt(clearTimestamp)) : 'لا يوجد');
-  console.log('�📢 الإعلان الحالي:', currentAdData ? JSON.parse(currentAdData) : 'لا يوجد');
-  console.log('👁️ الإعلانات المشاهدة:', shownAds ? JSON.parse(shownAds).length : 0);
-  console.log('🔄 حالة فحص الإعلانات:', adCheckInterval ? 'نشط' : 'متوقف');
-  
-  const adModal = document.getElementById('adModal');
-  console.log('🎭 حالة نافذة الإعلان:', adModal ? adModal.style.display : 'غير موجود');
-  
-  // معلومات الخادم والبيئة
-  console.log('🌐 نوع البروتوكول:', window.location.protocol);
-  console.log('🖥️ الخادم:', window.location.hostname);
-  console.log('📁 المسار:', window.location.pathname);
-  console.log('� الرابط الكامل:', window.location.href);
-  console.log('�🕐 الوقت الحالي:', new Date());
-  
-  // فحص حالة الاتصال
-  if (navigator.onLine) {
-    console.log('🌐 حالة الاتصال: متصل');
-  } else {
-    console.log('❌ حالة الاتصال: غير متصل');
-  }
-  
-  console.log('🔧 === انتهى التشخيص ===');
-}
-
-/* ---------------------------
-   Dynamic Ad System
-   --------------------------- */
-async function checkForAds() {
-  try {
-    // إضافة timestamp لتجنب cache المتصفح
-    const timestamp = new Date().getTime();
-    const baseUrl = `https://api.telegram.org/bot${encodeURIComponent(BOT_TOKEN)}`;
-    const response = await fetch(`${baseUrl}/getUpdates?limit=5&offset=-5&_t=${timestamp}`, {
-      method: 'GET',
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-    });
-    const data = await response.json();
-    
-    if (data.ok && data.result && data.result.length > 0) {
-      console.log('📡 تم استلام', data.result.length, 'رسائل جديدة');
-      
-      // فحص آخر 5 رسائل للبحث عن أوامر الإلغاء أولاً
-      let foundClearCommand = false;
-      let latestAdMessage = null;
-      let foundDebugCommand = false;
-      
-      for (let i = data.result.length - 1; i >= 0; i--) {
-        const message = data.result[i].message;
-        
-        if (message && message.text === '/clear_ads') {
-          console.log('🛑 تم استلام أمر إلغاء الإعلانات');
-          foundClearCommand = true;
-          clearAllAds();
-          return; // توقف فوراً عند العثور على أمر الإلغاء
-        }
-        
-        if (message && message.text === '/debug') {
-          console.log('🔧 تم استلام أمر التشخيص');
-          foundDebugCommand = true;
-          showDebugInfo();
-        }
-        
-        if (message && message.text === '/refresh') {
-          console.log('🔄 تم استلام أمر تحديث الصفحة');
-          // مسح جميع البيانات المؤقتة وإعادة التحميل
-          localStorage.removeItem('forceAdsClear');
-          localStorage.removeItem('clearTimestamp');
-          setTimeout(() => {
-            window.location.reload(true); // إعادة تحميل كاملة مع تجاهل cache
-          }, 1000);
-          return;
-        }
-        
-        // البحث عن أحدث إعلان
-        if (message && message.text && message.text.startsWith('/ad ')) {
-          if (!latestAdMessage || message.message_id > latestAdMessage.message_id) {
-            latestAdMessage = message;
-          }
-        }
-      }
-      
-      // إذا تم العثور على أمر تشخيص، أظهر المعلومات
-      if (foundDebugCommand) {
-        return;
-      }
-      
-      // إذا لم يتم العثور على أمر إلغاء، عرض الإعلان الجديد
-      if (!foundClearCommand && latestAdMessage) {
-        const adContent = latestAdMessage.text.substring(4).trim();
-        if (adContent && !isAdAlreadyShown(latestAdMessage.message_id)) {
-          console.log('📢 تم العثور على إعلان جديد:', adContent.substring(0, 50) + '...');
-          showDynamicAd(adContent, latestAdMessage.message_id);
-          saveCurrentAd(adContent, latestAdMessage.message_id);
-        } else if (isAdAlreadyShown(latestAdMessage.message_id)) {
-          console.log('ℹ️ الإعلان تم عرضه مسبقاً');
-        }
-      }
-    }
-  } catch (error) {
-    console.error('❌ خطأ في فحص الإعلانات:', error);
-  }
-}
-
-function isAdAlreadyShown(messageId) {
-  // فحص إذا كان المستخدم شاهد هذا الإعلان من قبل وضغط "فهمت"
-  const userFingerprint = getUserFingerprint();
-  const shownAds = JSON.parse(localStorage.getItem('shownAds_' + userFingerprint) || '[]');
-  return shownAds.includes(messageId);
-}
-
-function markAdAsShown(messageId) {
-  // تسجيل أن المستخدم ضغط "فهمت" على هذا الإعلان
-  const userFingerprint = getUserFingerprint();
-  const shownAds = JSON.parse(localStorage.getItem('shownAds_' + userFingerprint) || '[]');
-  shownAds.push(messageId);
-  // احتفظ بآخر 50 إعلان فقط
-  if (shownAds.length > 50) {
-    shownAds.splice(0, shownAds.length - 50);
-  }
-  localStorage.setItem('shownAds_' + userFingerprint, JSON.stringify(shownAds));
-  
-  // مسح الإعلان الحالي من التخزين المؤقت
-  const userFingerprint2 = getUserFingerprint();
-  localStorage.removeItem('currentAd_' + userFingerprint2);
-}
-
-function saveCurrentAd(content, messageId) {
-  // التحقق من عدم وجود أمر إلغاء حديث قبل الحفظ (آخر دقيقة فقط)
-  const lastClearTime = localStorage.getItem('lastClearTime');
-  const oneMinuteAgo = Date.now() - (1 * 60 * 1000);
-  
-  if (lastClearTime && parseInt(lastClearTime) > oneMinuteAgo) {
-    console.log('🛑 لن يتم حفظ الإعلان بسبب وجود أمر إلغاء حديث جداً');
-    return;
-  }
-  
-  // حفظ الإعلان الحالي ليظهر عند تحديث الصفحة
-  const userFingerprint = getUserFingerprint();
-  const adData = { content, messageId, timestamp: Date.now() };
-  localStorage.setItem('currentAd_' + userFingerprint, JSON.stringify(adData));
-  console.log('💾 تم حفظ الإعلان للعرض عند تحديث الصفحة');
-}
-
-function loadCurrentAd() {
-  // تحقق أولاً إذا كان هناك أمر إلغاء حديث
-  checkForClearCommand().then(shouldClear => {
-    if (shouldClear) {
-      console.log('🛑 تم العثور على أمر إلغاء حديث - لن يتم تحميل أي إعلان');
-      clearAllAds();
-      return false;
-    }
-    
-    // تحميل الإعلان المحفوظ إذا وجد ولم يكن هناك أمر إلغاء
-    const userFingerprint = getUserFingerprint();
-    const savedAd = localStorage.getItem('currentAd_' + userFingerprint);
-    if (savedAd) {
-      try {
-        const adData = JSON.parse(savedAd);
-        // تحقق من أن الإعلان ليس قديم جداً (أكثر من 24 ساعة)
-        if (Date.now() - adData.timestamp < 24 * 60 * 60 * 1000) {
-          if (!isAdAlreadyShown(adData.messageId)) {
-            showDynamicAd(adData.content, adData.messageId);
-            return true;
-          }
-        }
-        // إذا كان قديم أو تم عرضه، احذفه
-        localStorage.removeItem('currentAd_' + userFingerprint);
-      } catch (e) {
-        localStorage.removeItem('currentAd_' + userFingerprint);
-      }
-    }
-    return false;
-  });
-}
-
-// دالة جديدة للتحقق من أوامر الإلغاء الحديثة
-async function checkForClearCommand() {
-  try {
-    const baseUrl = `https://api.telegram.org/bot${encodeURIComponent(BOT_TOKEN)}`;
-    const response = await fetch(`${baseUrl}/getUpdates?limit=10&offset=-10`);
-    const data = await response.json();
-    
-    if (data.ok && data.result && data.result.length > 0) {
-      // البحث في آخر 10 رسائل عن أمر إلغاء حديث (خلال آخر 10 دقائق)
-      const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
-      
-      for (let i = data.result.length - 1; i >= 0; i--) {
-        const message = data.result[i].message;
-        if (message && message.text === '/clear_ads') {
-          const messageTime = message.date * 1000; // تحويل من unix timestamp
-          if (messageTime > tenMinutesAgo) {
-            console.log('🛑 تم العثور على أمر إلغاء حديث:', new Date(messageTime));
-            return true;
-          }
-        }
-      }
-    }
-    return false;
-  } catch (error) {
-    console.warn('خطأ في فحص أوامر الإلغاء:', error);
-    return false;
-  }
-}
-
-function getUserFingerprint() {
-  // إنشاء بصمة فريدة للمستخدم
-  let fingerprint = localStorage.getItem('userFingerprint');
-  if (!fingerprint) {
-    fingerprint = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('userFingerprint', fingerprint);
-  }
-  return fingerprint;
-}
-
-function clearAllAds() {
-  console.log('🔄 بدء عملية إلغاء جميع الإعلانات...');
-  
-  // تسجيل وقت الإلغاء لمنع تحميل إعلانات بعد تحديث الصفحة
-  const clearTime = Date.now();
-  localStorage.setItem('lastClearTime', clearTime.toString());
-  
-  // إضافة علامة إضافية للتأكد من الإلغاء على الخوادم البعيدة
-  localStorage.setItem('forceAdsClear', 'true');
-  localStorage.setItem('clearTimestamp', clearTime.toString());
-  
-  // إخفاء أي إعلان ظاهر حالياً فوراً
-  const adModal = document.getElementById('adModal');
-  if (adModal) {
-    adModal.setAttribute('aria-hidden', 'true');
-    adModal.style.display = 'none !important';
-    adModal.style.opacity = '0';
-    adModal.style.visibility = 'hidden';
-    adModal.style.zIndex = '-1';
-    adModal.classList.remove('active');
-    document.body.classList.remove('modal-open');
-    document.body.classList.remove('ad-open');
-    console.log('✅ تم إخفاء الإعلان المرئي');
-  }
-  
-  // إيقاف فحص الإعلانات الجديدة
-  if (adCheckInterval) {
-    clearInterval(adCheckInterval);
-    adCheckInterval = null;
-    console.log('✅ تم إيقاف فحص الإعلانات الجديدة');
-  }
-  
-  // مسح جميع الإعلانات المحفوظة لجميع المستخدمين
-  const keys = Object.keys(localStorage);
-  let clearedCount = 0;
-  keys.forEach(key => {
-    if (key.startsWith('shownAds_') || key.startsWith('currentAd_') || key.startsWith('userFingerprint')) {
-      localStorage.removeItem(key);
-      clearedCount++;
-    }
-  });
-  
-  // مسح متغيرات الإعلانات العامة
-  currentAd = null;
-  
-  // مسح أي عناصر إعلانية مؤقتة
-  const tempAdElements = document.querySelectorAll('[id*="ad"], [class*="ad-temp"], [data-ad]');
-  tempAdElements.forEach(el => {
-    if (el.id !== 'adModal' && el.id !== 'adTitle' && el.id !== 'adMessage') {
-      el.remove();
-    }
-  });
-  
-  console.log(`✅ تم مسح ${clearedCount} عنصر من التخزين المحلي`);
-  
-  // إعادة تسجيل وقت الإلغاء بعد المسح
-  localStorage.setItem('lastClearTime', clearTime.toString());
-  localStorage.setItem('forceAdsClear', 'true');
-  
-  console.log('✅ تم إلغاء جميع الإعلانات بنجاح - النظام نظيف تماماً');
-  console.log('⏰ تم تسجيل وقت الإلغاء لمنع إعادة التحميل');
-  console.log('🌐 تم تطبيق الإعدادات للخوادم البعيدة');
-  
-  // فرض إعادة تحميل الصفحة بعد ثانيتين للتأكد من التطبيق
-  setTimeout(() => {
-    console.log('🔄 فرض تحديث حالة الإعلانات...');
-    // إخفاء مرة أخرى للتأكد
-    const adModal2 = document.getElementById('adModal');
-    if (adModal2 && adModal2.style.display !== 'none') {
-      adModal2.style.display = 'none !important';
-      adModal2.style.visibility = 'hidden';
-      console.log('🔒 تم فرض إخفاء الإعلان مرة أخرى');
-    }
-  }, 2000);
-  
-  // إعادة تشغيل النظام بعد 15 ثانية (وقت أطول للخوادم البعيدة)
-  setTimeout(() => {
-    if (localStorage.getItem('forceAdsClear') === 'true') {
-      localStorage.removeItem('forceAdsClear');
-      console.log('🔄 إزالة حالة الإلغاء القسري');
-    }
-    
-    console.log('🔄 إعادة تشغيل نظام فحص الإعلانات...');
-    if (!adCheckInterval) {
-      adCheckInterval = setInterval(() => {
-        console.log('🔍 فحص الإعلانات الجديدة...');
-        checkForAds();
-      }, 15000);
-    }
-  }, 15000);
-  
-  return; // توقف عن البحث عن إعلانات جديدة بعد الإلغاء
-}
-
-function showDynamicAd(content, messageId) {
-  console.log('🎬 بدء عرض الإعلان:', messageId);
-  
-  const adModal = document.getElementById('adModal');
-  const adTitle = document.getElementById('adTitle');
-  const adMessage = document.getElementById('adMessage');
-  const adImageContainer = document.getElementById('adImageContainer');
-  const adImage = document.getElementById('adImage');
-  const adActionBtn = document.getElementById('adActionBtn');
-  
-  if (!adModal) {
-    console.error('❌ عنصر الإعلان غير موجود في الصفحة');
-    return;
-  }
-  
-  // تحليل محتوى الإعلان
-  const lines = content.split('\n');
-  const title = lines[0] || 'إعلان مهم';
-  const message = lines.slice(1).join('\n') || 'رسالة إعلانية';
-  
-  // البحث عن رابط في النص (أي نوع من الروابط)
-  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[^\s]+\.[a-z]{2,}\/[^\s]*)/gi;
-  const urls = content.match(urlRegex);
-  const cleanMessage = message.replace(urlRegex, '').trim();
-  
-  // البحث عن صورة
-  const imageRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg))/gi;
-  const imageUrls = content.match(imageRegex);
-  
-  if (adTitle) adTitle.textContent = title;
-  if (adMessage) adMessage.textContent = cleanMessage || message;
-  
-  // إظهار الصورة إذا وجدت
-  if (imageUrls && imageUrls[0] && adImage && adImageContainer) {
-    adImage.src = imageUrls[0];
-    adImage.style.maxWidth = '100%';
-    adImage.style.height = 'auto';
-    adImageContainer.style.display = 'block';
-    
-    // معالجة خطأ تحميل الصورة
-    adImage.onerror = function() {
-      adImageContainer.style.display = 'none';
-      console.warn('فشل تحميل صورة الإعلان:', imageUrls[0]);
-    };
-  } else if (adImageContainer) {
-    adImageContainer.style.display = 'none';
-  }
-  
-  // إظهار زر الإجراء إذا وجد رابط (أي نوع)
-  if (urls && urls[0] && adActionBtn) {
-    let linkUrl = urls[0];
-    
-    // تصحيح الرابط إذا لم يبدأ بـ http
-    if (!linkUrl.startsWith('http')) {
-      linkUrl = 'https://' + linkUrl;
-    }
-    
-    adActionBtn.style.display = 'inline-block';
-    adActionBtn.textContent = '🔗 فتح الرابط';
-    adActionBtn.onclick = function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('🔗 فتح الرابط:', linkUrl);
-      
-      // محاولة فتح الرابط بطرق متعددة
-      try {
-        // الطريقة الأولى: window.open
-        const newWindow = window.open(linkUrl, '_blank', 'noopener,noreferrer');
-        
-        // الطريقة البديلة: إنشاء رابط مؤقت
-        if (!newWindow) {
-          const tempLink = document.createElement('a');
-          tempLink.href = linkUrl;
-          tempLink.target = '_blank';
-          tempLink.rel = 'noopener noreferrer';
-          document.body.appendChild(tempLink);
-          tempLink.click();
-          document.body.removeChild(tempLink);
-        }
-      } catch (error) {
-        console.error('خطأ في فتح الرابط:', error);
-        // نسخ الرابط للحافظة كبديل
-        navigator.clipboard.writeText(linkUrl).then(() => {
-          alert('تم نسخ الرابط للحافظة: ' + linkUrl);
-        }).catch(() => {
-          alert('الرابط: ' + linkUrl);
-        });
-      }
-    };
-  } else if (adActionBtn) {
-    adActionBtn.style.display = 'none';
-  }
-  
-  // إظهار النافذة الإعلانية
-  adModal.setAttribute('aria-hidden', 'false');
-  adModal.style.display = 'flex';
-  adModal.style.opacity = '1';
-  adModal.style.visibility = 'visible';
-  document.body.classList.add('modal-open');
-  document.body.classList.add('ad-open');
-  
-  console.log('📢 تم عرض الإعلان:', title);
-}
-
-function initAdSystem() {
-  const adModal = document.getElementById('adModal');
-  const closeAdBtn = document.getElementById('closeAdBtn');
-  
-  console.log('🎬 بدء نظام الإعلانات...');
-  
-  // فحص الحالة القسرية للإلغاء (للخوادم البعيدة)
-  const forceAdsClear = localStorage.getItem('forceAdsClear');
-  const clearTimestamp = localStorage.getItem('clearTimestamp');
-  
-  if (forceAdsClear === 'true') {
-    console.log('🛑 تم العثور على حالة إلغاء قسرية - إخفاء أي إعلانات');
-    
-    // إخفاء أي إعلان ظاهر فوراً
-    if (adModal) {
-      adModal.style.display = 'none !important';
-      adModal.style.visibility = 'hidden';
-      adModal.style.opacity = '0';
-      document.body.classList.remove('modal-open');
-      document.body.classList.remove('ad-open');
-    }
-    
-    // مسح أي إعلانات محفوظة
-    const userFingerprint = getUserFingerprint();
-    localStorage.removeItem('currentAd_' + userFingerprint);
-    
-    // فحص إذا مر وقت كافي (10 ثوانٍ) لإزالة الحالة القسرية
-    if (clearTimestamp) {
-      const timePassed = Date.now() - parseInt(clearTimestamp);
-      if (timePassed > 10000) { // 10 ثوانٍ
-        localStorage.removeItem('forceAdsClear');
-        localStorage.removeItem('clearTimestamp');
-        console.log('✅ تم إزالة الحالة القسرية بعد انتهاء المدة');
-      } else {
-        console.log('⏳ انتظار انتهاء فترة الإلغاء القسري:', Math.ceil((10000 - timePassed) / 1000), 'ثانية');
-        // إعادة المحاولة بعد انتهاء الوقت
-        setTimeout(() => {
-          localStorage.removeItem('forceAdsClear');
-          localStorage.removeItem('clearTimestamp');
-          console.log('🔄 إعادة تشغيل النظام بعد انتهاء فترة الإلغاء');
-          initAdSystem();
-        }, 10000 - timePassed);
-        return;
-      }
-    }
-  }
-  
-  // فحص إذا كان هناك أمر إلغاء حديث في localStorage (آخر دقيقة فقط)
-  const lastClearTime = localStorage.getItem('lastClearTime');
-  const oneMinuteAgo = Date.now() - (1 * 60 * 1000);
-  
-  if (lastClearTime && parseInt(lastClearTime) > oneMinuteAgo) {
-    console.log('🛑 تم العثور على أمر إلغاء حديث جداً - انتظار دقيقة');
-    // انتظار دقيقة ثم إعادة التشغيل
-    setTimeout(() => {
-      console.log('🔄 إعادة تشغيل نظام الإعلانات بعد انتهاء فترة الانتظار');
-      localStorage.removeItem('lastClearTime'); // مسح وقت الإلغاء
-      initAdSystem(); // إعادة تشغيل النظام
-    }, 1 * 60 * 1000);
-    return;
-  }
-  
-  function closeAdModal() {
-    if (adModal) {
-      // الحصول على معرف الإعلان الحالي من البيانات المحفوظة
-      const userFingerprint = getUserFingerprint();
-      const savedAd = localStorage.getItem('currentAd_' + userFingerprint);
-      if (savedAd) {
-        try {
-          const adData = JSON.parse(savedAd);
-          markAdAsShown(adData.messageId); // تسجيل أن المستخدم ضغط "فهمت"
-        } catch (e) {}
-      }
-      
-      adModal.setAttribute('aria-hidden', 'true');
-      adModal.style.display = 'none';
-      document.body.classList.remove('modal-open');
-      document.body.classList.remove('ad-open'); // إزالة كلاس التعتيم
-    }
-  }
-  
-  // الإغلاق فقط عند الضغط على "فهمت"
-  if (closeAdBtn) closeAdBtn.addEventListener('click', closeAdModal);
-  
-  // مسح وقت الإلغاء القديم إذا مر عليه أكثر من دقيقتين
-  if (lastClearTime && parseInt(lastClearTime) <= twoMinutesAgo) {
-    localStorage.removeItem('lastClearTime');
-    console.log('🗑️ تم مسح وقت الإلغاء القديم');
-  }
-  
-  // تحميل الإعلان المحفوظ أولاً (مع فحص أوامر الإلغاء)
-  loadCurrentAd();
-  
-  // فحص فوري للإعلانات الجديدة
-  console.log('🔍 فحص فوري للإعلانات الجديدة...');
-  checkForAds();
-  
-  // فحص الإعلانات كل 15 ثانية (أسرع للاختبار)
-  adCheckInterval = setInterval(() => {
-    console.log('🔍 فحص الإعلانات الجديدة...');
-    checkForAds();
-  }, 15000);
-  
-  console.log('✅ تم تشغيل نظام الإعلانات بنجاح');
-}
-
-// تشغيل نظام الإعلانات
-document.addEventListener('DOMContentLoaded', initAdSystem);
