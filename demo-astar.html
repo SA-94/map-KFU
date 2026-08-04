@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تجربة التوجيه — شبكة الممرات + المخارج</title>
+<style>
+  :root{ --bg:#0f172a; --card:#1e293b; --txt:#e2e8f0; --muted:#94a3b8;
+         --net:#64748b; --room:#38bdf8; --room-active:#f59e0b; --path:#3b82f6; --exit:#ef4444; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--txt);padding:12px}
+  h1{font-size:17px;font-weight:600;margin:0 0 8px}
+  .bar{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:8px}
+  input,button,select{font-family:inherit;font-size:14px;border-radius:8px;border:1px solid #334155;background:var(--card);color:var(--txt);padding:8px 11px}
+  button{cursor:pointer} button:hover{border-color:var(--room)}
+  button.on{background:var(--path);border-color:var(--path);color:#fff}
+  #status{color:var(--muted);margin-inline-start:auto;font-size:13px;min-width:180px;text-align:left}
+  .stage{position:relative;max-width:720px;margin:auto;border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+  #map{display:block;width:100%}
+  #ov{position:absolute;inset:0;width:100%;height:100%}
+  .legend{display:flex;flex-wrap:wrap;gap:13px;font-size:12.5px;color:var(--muted);max-width:720px;margin:9px auto 0}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:50%} .ln{width:16px;border-top:3px solid;height:0}
+  .room-hit{cursor:pointer} .room-hit:hover circle{r:7}
+</style>
+</head>
+<body>
+  <h1>🧭 تجربة التوجيه — الدور الأول (شبكة ذكية + مخارج)</h1>
+  <div class="bar">
+    <label>من:</label>
+    <select id="startSel">
+      <option value="auto">أقرب مخرج تلقائياً</option>
+      <option value="0">مخرج ①</option>
+      <option value="1">مخرج ②</option>
+      <option value="2">مخرج ③</option>
+    </select>
+    <input id="q" list="rl" placeholder="رقم القاعة (مثال 1024)" style="width:170px">
+    <datalist id="rl"></datalist>
+    <button id="go">ابحث</button>
+    <button id="net">إخفاء الشبكة</button>
+    <button id="reset">↺ مسح</button>
+    <span id="status">اختر قاعة 👆</span>
+  </div>
+  <div class="stage">
+    <img id="map" src="map-1.png" alt="خريطة الدور الأول">
+    <svg id="ov" viewBox="0 0 901 988" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--exit)"></i> مخرج</span>
+    <span><i class="ln" style="border-color:var(--path)"></i> المسار</span>
+    <span><i class="dot" style="background:var(--room)"></i> قاعة</span>
+    <span><i class="ln" style="border-color:var(--net)"></i> شبكة الممرات</span>
+  </div>
+
+  <script src="rooms.js"></script>
+  <script src="skel.js"></script>
+  <script>
+  const SVGNS="http://www.w3.org/2000/svg", ov=document.getElementById("ov"), statusEl=document.getElementById("status");
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  function projSeg(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,L2=dx*dx+dy*dy;let t=L2?((p.x-a.x)*dx+(p.y-a.y)*dy)/L2:0;t=Math.max(0,Math.min(1,t));const x=a.x+t*dx,y=a.y+t*dy;return{x,y,d:Math.hypot(p.x-x,p.y-y)};}
+
+  // ---- base graph ----
+  const BN=SKEL.nodes.map(([x,y])=>({x,y}));      // base nodes
+  const BE=SKEL.edges;                             // base edges
+  const EXITS=SKEL.exits.map(([x,y])=>({x,y}));
+  const SIGNS=SKEL.exitSigns.map(([x,y])=>({x,y}));
+  const ROOMS=Object.entries(roomCoordinates).filter(([id,r])=>r.floor===1).map(([id,r])=>({id,x:r.x,y:r.y}));
+  // precompute each room's projection onto nearest base edge
+  ROOMS.forEach(r=>{let best=null;BE.forEach((e,ei)=>{const pr=projSeg(r,BN[e[0]],BN[e[1]]);if(!best||pr.d<best.d)best={...pr,edge:ei};});r.proj=best;});
+  // each exit's projection (already ~on corridor) onto nearest edge
+  EXITS.forEach(x=>{let best=null;BE.forEach((e,ei)=>{const pr=projSeg(x,BN[e[0]],BN[e[1]]);if(!best||pr.d<best.d)best={...pr,edge:ei};});x.proj=best;});
+
+  // build a fresh graph then optionally splice in extra nodes on given edges
+  function baseGraph(){
+    const nodes=BN.map(n=>({...n})), adj=nodes.map(()=>[]);
+    BE.forEach(e=>{const w=dist(nodes[e[0]],nodes[e[1]]);adj[e[0]].push([e[1],w]);adj[e[1]].push([e[0],w]);});
+    return {nodes,adj};
+  }
+  function splice(g,proj){ // add a node at proj on its edge, linked to that edge's endpoints
+    const {nodes,adj}=g, [a,b]=BE[proj.edge], i=nodes.length;
+    nodes.push({x:proj.x,y:proj.y}); adj.push([]);
+    [a,b].forEach(k=>{const w=dist(nodes[k],nodes[i]);adj[k].push([i,w]);adj[i].push([k,w]);});
+    return i;
+  }
+  function astar(g,s,t){
+    const {nodes,adj}=g, goal=nodes[t];
+    const gsc=nodes.map(()=>Infinity),f=nodes.map(()=>Infinity),prev=nodes.map(()=>-1),open=new Set([s]);
+    gsc[s]=0;f[s]=dist(nodes[s],goal);
+    while(open.size){let cur=-1,bf=Infinity;open.forEach(i=>{if(f[i]<bf){bf=f[i];cur=i;}});
+      if(cur===t)break;open.delete(cur);
+      for(const[nb,w]of adj[cur]){const ng=gsc[cur]+w;if(ng<gsc[nb]){gsc[nb]=ng;f[nb]=ng+dist(nodes[nb],goal);prev[nb]=cur;open.add(nb);}}}
+    if(prev[t]===-1&&t!==s)return null;
+    const path=[];let c=t;while(c!==-1){path.unshift(nodes[c]);c=prev[c];}return {path,len:gsc[t]};
+  }
+  // route from a given exit index (or auto) to a room
+  function routeExitToRoom(exitIdx,room){
+    const g=baseGraph();
+    const rNode=splice(g,room.proj);
+    const rRoom=g.nodes.length; g.nodes.push({x:room.x,y:room.y}); g.adj.push([]);
+    const w=dist(g.nodes[rNode],g.nodes[rRoom]); g.adj[rNode].push([rRoom,w]); g.adj[rRoom].push([rNode,w]);
+    const exNode=splice(g,EXITS[exitIdx].proj);
+    return astar(g,exNode,rRoom);
+  }
+  function bestRoute(room){
+    if(startSel.value!=="auto"){const i=+startSel.value;const r=routeExitToRoom(i,room);return r?{...r,exit:i}:null;}
+    let best=null;for(let i=0;i<EXITS.length;i++){const r=routeExitToRoom(i,room);if(r&&(!best||r.len<best.len))best={...r,exit:i};}
+    return best;
+  }
+
+  let showNet=true, activeId=null, animId=null;
+  const el=(t,a)=>{const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+  function render(routed){
+    ov.innerHTML="";
+    if(showNet){BE.forEach(e=>ov.appendChild(el("line",{x1:BN[e[0]].x,y1:BN[e[0]].y,x2:BN[e[1]].x,y2:BN[e[1]].y,stroke:"var(--net)","stroke-width":2,"stroke-linecap":"round",opacity:.65})));}
+    if(routed){const d="M"+routed.path.map(p=>p.x+" "+p.y).join(" L ");ov.appendChild(el("path",{d,fill:"none",stroke:"var(--path)","stroke-width":5,"stroke-linejoin":"round","stroke-linecap":"round"}));}
+    // exits
+    EXITS.forEach((x,i)=>{
+      ov.appendChild(el("line",{x1:x.x,y1:x.y,x2:SIGNS[i].x,y2:SIGNS[i].y,stroke:"var(--exit)","stroke-width":2,opacity:.7}));
+      const on=routed&&routed.exit===i;
+      ov.appendChild(el("circle",{cx:x.x,cy:x.y,r:on?10:7,fill:"var(--exit)","fill-opacity":on?1:.85}));
+      const tx=el("text",{x:x.x,y:x.y-13,"text-anchor":"middle","font-size":13,fill:"var(--exit)","font-weight":"bold"});tx.textContent=(i+1);ov.appendChild(tx);
+    });
+    // rooms
+    ROOMS.forEach(r=>{const g=el("g",{class:"room-hit"});
+      g.appendChild(el("circle",{cx:r.x,cy:r.y,r:activeId===r.id?7:4.3,fill:activeId===r.id?"var(--room-active)":"var(--room)","fill-opacity":activeId===r.id?1:.8}));
+      g.addEventListener("click",ev=>{ev.stopPropagation();go(r.id);});
+      const tt=el("title");tt.textContent="قاعة "+r.id;g.appendChild(tt);ov.appendChild(g);});
+    if(routed)animate(routed.path);
+  }
+  function animate(path){cancelAnimationFrame(animId);const m=el("polygon",{points:"0,-7 5,6 -5,6",fill:"#fff",stroke:"var(--path)","stroke-width":1});ov.appendChild(m);
+    const seg=[];let tot=0;for(let i=0;i<path.length-1;i++){const L=dist(path[i],path[i+1]);seg.push(L);tot+=L;}if(tot===0)return;let tr=0,last=0;
+    function fr(ts){if(!last)last=ts;tr+=150*(ts-last)/1000;last=ts;if(tr>=tot){tr=0;last=ts;}
+      let acc=0,i=0;while(i<seg.length&&acc+seg[i]<tr){acc+=seg[i];i++;}
+      const a=path[i],b=path[i+1]||a,t=seg[i]?(tr-acc)/seg[i]:0,x=a.x+(b.x-a.x)*t,y=a.y+(b.y-a.y)*t,ang=Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI+90;
+      m.setAttribute("transform",`translate(${x},${y}) rotate(${ang})`);animId=requestAnimationFrame(fr);}
+    animId=requestAnimationFrame(fr);}
+  function go(id){const room=ROOMS.find(r=>r.id===String(id));
+    if(!room){statusEl.textContent="⚠️ القاعة مو بالدور الأول";return;}
+    activeId=room.id;const r=bestRoute(room);
+    if(!r){statusEl.textContent="⚠️ ما فيه مسار";render(null);return;}
+    statusEl.textContent=`من مخرج ${r.exit+1} ← قاعة ${room.id} — الطول ≈ ${Math.round(r.len)} بكسل`;render(r);}
+
+  const startSel=document.getElementById("startSel");
+  startSel.addEventListener("change",()=>{if(activeId)go(activeId);});
+  document.getElementById("net").addEventListener("click",e=>{showNet=!showNet;e.target.textContent=showNet?"إخفاء الشبكة":"إظهار الشبكة";go(activeId||"");if(!activeId)render(null);});
+  document.getElementById("reset").addEventListener("click",()=>{activeId=null;cancelAnimationFrame(animId);statusEl.textContent="اختر قاعة 👆";render(null);});
+  document.getElementById("go").addEventListener("click",()=>go(document.getElementById("q").value.trim()));
+  document.getElementById("q").addEventListener("keydown",e=>{if(e.key==="Enter")go(e.target.value.trim());});
+  const rl=document.getElementById("rl");ROOMS.forEach(r=>{const o=document.createElement("option");o.value=r.id;rl.appendChild(o);});
+  render(null);
+  </script>
+</body>
+</html>

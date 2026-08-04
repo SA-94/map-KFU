@@ -1,0 +1,11 @@
+# ملفات تشغيل/تجربة محلية (لا تُرفع)
+_serve.js
+_test-paths.html
+_backup/
+
+# نسخة قديمة مكرّرة من نفس الريبو
+map-KFU-main/
+
+# نظام
+.DS_Store
+Thumbs.db

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>خريطة الممرات – إنشاء وحفظ المسارات</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      direction: rtl;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+    #controls {
+      margin-bottom: 10px;
+    }
+    input[type="file"],
+    input[type="text"],
+    select,
+    button {
+      font-size: 16px;
+      padding: 6px 10px;
+      margin: 5px;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    canvas {
+      border: 2px solid #333;
+      cursor: crosshair;
+      display: block;
+      margin: 10px auto;
+    }
+    table {
+      width: 90%;
+      margin: 15px auto 30px;
+      border-collapse: collapse;
+      direction: rtl;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px 8px;
+    }
+    th {
+      background-color: #e0e0e0;
+    }
+    .small-btn {
+      font-size: 14px;
+      padding: 4px 8px;
+      margin: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🗺️ خريطة الممرات – إنشاء وحفظ المسارات</h2>
+
+  <div id="controls">
+    <!-- 1. اختيار صورة الخريطة -->
+    <input type="file" id="imageLoader" accept="image/*">
+
+    <!-- 2. إدخال اسم المسار -->
+    <input type="text" id="pathName" placeholder="اسم المسار (رقم قاعة أو 'المسجد')" />
+
+    <!-- 3. اختيار نوع النقطة -->
+    <select id="pointType">
+      <option value="start">🔵 بداية (start)</option>
+      <option value="middle">🟢 منتصف (middle)</option>
+      <option value="end">🔴 نهاية (end)</option>
+    </select>
+
+    <!-- 4. زر إضافة المسار الحالي -->
+    <button onclick="addCurrentPath()">➕ إضافة مسار</button>
+
+    <!-- 5. زر تصدير كل المسارات -->
+    <button onclick="exportAllPaths()">📥 تصدير كل المسارات (paths.rel.js)</button>
+  </div>
+
+  <!-- 6. اللوحة (canvas) التي تعرض الخريطة والنقاط -->
+  <canvas id="canvas"></canvas>
+
+  <!-- 7. جدول عرض النقاط للمسار الحالي -->
+  <h3>📋 نقاط المسار الحالي (“<span id="currentPathLabel">–</span>”)</h3>
+  <table id="currentPointsTable">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>النوع</th>
+        <th>نسبة X</th>
+        <th>نسبة Y</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- 8. جدول عرض جميع المسارات المحفوظة -->
+  <h3>📚 قائمة المسارات المحفوظة</h3>
+  <table id="savedPathsTable">
+    <thead>
+      <tr>
+        <th>اسم المسار</th>
+        <th>عدد النقاط</th>
+        <th>إجراءات</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+  // عناصر DOM
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  const imageLoader = document.getElementById("imageLoader");
+  const pathNameInput = document.getElementById("pathName");
+  const pointTypeSelector = document.getElementById("pointType");
+  const currentPointsTableBody = document.querySelector("#currentPointsTable tbody");
+  const currentPathLabel = document.getElementById("currentPathLabel");
+  const savedPathsTableBody = document.querySelector("#savedPathsTable tbody");
+
+  // متغيرات الرسم والحالة
+  let image = new Image();
+  let imgLoaded = false;
+  let points = [];            // النقاط للمسار الحالي
+  let dragIndex = null;       // فهرس النقطة التي يتم سحبها
+  let savedPaths = {};        // كائن فيه المسارات المحفوظة { "اسم المسار": [نقاط...] }
+  let hasStart = false;
+  let hasEnd = false;
+  let endAlertShown = false;  // لضمان ظهور رسالة “تم إكمال المسار” مرة واحدة فقط
+
+  // عند اختيار صورة الخريطة
+  imageLoader.addEventListener("change", function(e) {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      image.onload = () => {
+        imgLoaded = true;
+        // ضبط حجم الـ canvas على أبعاد الصورة
+        canvas.width = image.width;
+        canvas.height = image.height;
+        resetCurrentPath();
+        draw();
+      };
+      image.src = event.target.result;
+    };
+    if (e.target.files[0]) {
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  });
+
+  // دالة لحساب إحداثيات الماوس داخل الـ canvas
+  function getMousePos(evt) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: evt.clientX - rect.left,
+      y: evt.clientY - rect.top
+    };
+  }
+
+  // عند الضغط بالماوس داخل الـ canvas
+  canvas.addEventListener("mousedown", function(e) {
+    if (!imgLoaded) return;
+
+    const { x, y } = getMousePos(e);
+    // أولاً نحسب إذا كانت النقرة على نقطة موجودة
+    dragIndex = points.findIndex(p => Math.hypot(p.x - x, p.y - y) < 10);
+
+    if (dragIndex >= 0) {
+      // إذا نقرت مباشرة على نقطة موجودة، نسمح بالسحب لتعديل موقعها حتى لو hasEnd = true
+      return;
+    }
+
+    // إذا لم تكن النقرة على نقطة موجودة، ولديك نقطة نهاية فعلاً، لا إضافة نقاط جديدة
+    if (hasEnd) {
+      return;
+    }
+
+    // هنا: إضافة نقطة جديدة لأن dragIndex === -1 و hasEnd === false
+    const type = pointTypeSelector.value;
+
+    // منع إضافة أكثر من نقطة بداية
+    if (type === "start" && hasStart) {
+      alert("⚠️ نقطة البداية موجودة مسبقًا!");
+      return;
+    }
+    // منع وضع “end” قبل “start”
+    if (type === "end" && !hasStart) {
+      alert("⚠️ يجب إضافة نقطة بداية أولاً!");
+      return;
+    }
+
+    // إضافة النقطة
+    points.push({ x, y, type });
+
+    // ضبط العلم إذا كانت بداية أو نهاية
+    if (type === "start") {
+      hasStart = true;
+      // بعد البداية: نجعل الخيار التالي “منتصف”
+      pointTypeSelector.value = "middle";
+    }
+    else if (type === "end") {
+      hasEnd = true;
+      // رسالة إنهاء المسار تظهر مرة واحدة فقط
+      if (!endAlertShown) {
+        alert("✔ تم وضع نقطة النهاية، المسار اكتمل. اضغط “➕ إضافة مسار” لحفظه.");
+        endAlertShown = true;
+      }
+      // تعطل القائمة حتى تضيف المسار
+      pointTypeSelector.disabled = true;
+    }
+
+    updateCurrentTable();
+    draw();
+  });
+
+  // عند تحريك الماوس أثناء السحب
+  canvas.addEventListener("mousemove", function(e) {
+    if (dragIndex !== null && imgLoaded) {
+      const { x, y } = getMousePos(e);
+      points[dragIndex].x = x;
+      points[dragIndex].y = y;
+      updateCurrentTable();
+      draw();
+    }
+  });
+
+  // عند رفع الضغط عن الماوس (انتهى السحب)
+  canvas.addEventListener("mouseup", function() {
+    dragIndex = null;
+  });
+
+  // دالة الرسم: تُظهر الصورة، ثم الخط المنقط بين النقاط، ثم ترسم الدوائر الملونة فقط
+  function draw() {
+    if (!imgLoaded) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    // رسم الخط المنقط إذا نقاط أكثر من 1
+    if (points.length > 1) {
+      ctx.beginPath();
+      ctx.setLineDash([6, 4]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#cc0000";
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // رسم النقاط (دوائر ملونة)
+    for (let p of points) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = getColorByType(p.type);
+      ctx.fill();
+    }
+  }
+
+  // ترجع اللون المناسب لكل نوع نقطة
+  function getColorByType(type) {
+    switch (type) {
+      case "start":   return "#007bff"; // أزرق للبداية
+      case "middle":  return "#28a745"; // أخضر للمنتصف
+      case "end":     return "#dc3545"; // أحمر للنهاية
+      default:        return "#000000";
+    }
+  }
+
+  // تحديث جدول النقاط الحالي (عرض الإحداثيات كنسب مئوية)
+  function updateCurrentTable() {
+    currentPointsTableBody.innerHTML = "";
+    currentPathLabel.textContent = pathNameInput.value || "–";
+
+    if (points.length === 0) {
+      const emptyRow = document.createElement("tr");
+      emptyRow.innerHTML = `<td colspan="4">لا توجد نقاط بعد</td>`;
+      currentPointsTableBody.appendChild(emptyRow);
+      return;
+    }
+
+    points.forEach((p, idx) => {
+      const xPerc = ((p.x / canvas.width) * 100).toFixed(4);
+      const yPerc = ((p.y / canvas.height) * 100).toFixed(4);
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${idx + 1}</td>
+        <td>${getLabelByType(p.type)}</td>
+        <td>${xPerc}%</td>
+        <td>${yPerc}%</td>
+      `;
+      currentPointsTableBody.appendChild(row);
+    });
+  }
+
+  // ترجع التسمية النصية للنوع (لجدول الإحداثيات)
+  function getLabelByType(type) {
+    switch (type) {
+      case "start":   return "بداية";
+      case "middle":  return "منتصف";
+      case "end":     return "نهاية";
+      default:        return "";
+    }
+  }
+
+  // زرّ ➕ إضافة مسار: يحفظ المسار الحالي ثم يُعيد الحالة إلى وضع جديد
+  function addCurrentPath() {
+    const name = pathNameInput.value.trim();
+    if (!name) {
+      alert("⚠️ الرجاء إدخال اسم للمسار أولاً!");
+      return;
+    }
+    if (!hasStart || !hasEnd) {
+      alert("⚠️ المسار غير مكتمل: يجب إضافة نقطة بداية ونقطة نهاية.");
+      return;
+    }
+    if (savedPaths.hasOwnProperty(name)) {
+      const overwrite = confirm(`المسار "${name}" موجود مسبقًا. هل تريد استبداله؟`);
+      if (!overwrite) return;
+    }
+
+    // نحول كل إحداثي إلى نسبة (0–1) ونحفظ النوع
+    const normalized = points.map(p => ({
+      x: parseFloat((p.x / canvas.width).toFixed(4)),
+      y: parseFloat((p.y / canvas.height).toFixed(4)),
+      type: p.type
+    }));
+    savedPaths[name] = normalized;
+
+    updateSavedPathsTable();
+    resetCurrentPath();
+    alert(`✔ تم إضافة المسار "${name}" بنجاح.`);
+  }
+
+  // إعادة تهيئة المسار الحالي لاستقبال مسار جديد
+  function resetCurrentPath() {
+    points = [];
+    hasStart = false;
+    hasEnd = false;
+    endAlertShown = false;
+    pointTypeSelector.disabled = false;
+    pointTypeSelector.value = "start";
+    updateCurrentTable();
+    draw();
+    pathNameInput.value = "";
+  }
+
+  // تحديث جدول المسارات المحفوظة (الأسفل)
+  function updateSavedPathsTable() {
+    savedPathsTableBody.innerHTML = "";
+    const keys = Object.keys(savedPaths);
+    if (keys.length === 0) {
+      const emptyRow = document.createElement("tr");
+      emptyRow.innerHTML = `<td colspan="3">لا توجد مسارات محفوظة</td>`;
+      savedPathsTableBody.appendChild(emptyRow);
+      return;
+    }
+
+    keys.forEach(name => {
+      const pts = savedPaths[name];
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${name}</td>
+        <td>${pts.length}</td>
+        <td>
+          <button class="small-btn" onclick="loadPath('${name}')">عرض</button>
+          <button class="small-btn" onclick="deletePath('${name}')">حذف</button>
+        </td>
+      `;
+      savedPathsTableBody.appendChild(row);
+    });
+  }
+
+  // عرض مسار محفوظ: نحوله من نسَب إلى بكسل، ثم نرجع الحالة للحفظ/التعديل
+  function loadPath(name) {
+    if (!savedPaths.hasOwnProperty(name)) return;
+    points = savedPaths[name].map(p => ({
+      x: p.x * canvas.width,
+      y: p.y * canvas.height,
+      type: p.type
+    }));
+    hasStart = points.some(p => p.type === "start");
+    hasEnd  = points.some(p => p.type === "end");
+    endAlertShown = hasEnd; 
+    pointTypeSelector.disabled = hasEnd;
+    if (!hasStart)        pointTypeSelector.value = "start";
+    else if (!hasEnd)     pointTypeSelector.value = "middle";
+    else                  pointTypeSelector.value = "middle";
+    pathNameInput.value = name;
+    updateCurrentTable();
+    draw();
+  }
+
+  // حذف مسار من المحفوظات
+  function deletePath(name) {
+    if (confirm(`هل أنت متأكد أنك تريد حذف المسار "${name}"؟`)) {
+      delete savedPaths[name];
+      updateSavedPathsTable();
+      if (pathNameInput.value.trim() === name) {
+        resetCurrentPath();
+      }
+    }
+  }
+
+  // تصدير جميع المسارات المحفوظة في ملف JavaScript باسم paths.rel.js
+  function exportAllPaths() {
+    const names = Object.keys(savedPaths);
+    if (names.length === 0) {
+      alert("🚫 لا توجد مسارات محفوظة للتصدير!");
+      return;
+    }
+    const pathsMap = {};
+    names.forEach(name => {
+      pathsMap[name] = savedPaths[name];
+    });
+
+    let content = "/** paths.rel.js — مولَّد آلياً **/\n";
+    content += "const pathsMap = " + JSON.stringify(pathsMap, null, 2) + ";\n";
+    content += "\nexport default pathsMap;\n";
+
+    const blob = new Blob([content], { type: "text/javascript;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "paths.rel.js";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alert("✅ تم تنزيل الملف paths.rel.js.\nإذا لم يفتح تلقائيًا، افتحه عبر VS Code أو Notepad.");
+  }
+
+  // تهيئة الجداول الفارغة عند البداية
+  updateCurrentTable();
+  updateSavedPathsTable();
+</script>
+
+</body>
+</html>

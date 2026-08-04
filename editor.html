@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>محرّر شبكة الممرات</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--txt:#e2e8f0;--muted:#94a3b8;--net:#3b82f6;--node:#60a5fa;
+        --sel:#f59e0b;--bad:#ef4444;--exit:#ef4444;--room:#38bdf8;--ok:#22c55e;--path:#a855f7}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--txt);padding:10px}
+  h1{font-size:16px;margin:0 0 8px}
+  .bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+  button{font-family:inherit;font-size:13px;border-radius:7px;border:1px solid #334155;background:var(--card);color:var(--txt);padding:7px 11px;cursor:pointer}
+  button:hover{border-color:var(--node)}
+  button.on{background:var(--net);border-color:var(--net);color:#fff}
+  .sep{width:1px;height:22px;background:#334155;margin:0 3px}
+  #info{margin-inline-start:auto;font-size:12.5px;color:var(--muted);text-align:left;line-height:1.5}
+  #info b{color:var(--ok)} #info .warn{color:var(--bad)}
+  .stage{position:relative;max-width:900px;aspect-ratio:901/988;margin:auto;border-radius:10px;overflow:hidden;background:#000;box-shadow:0 8px 30px rgba(0,0,0,.4);touch-action:none}
+  #wrap{position:absolute;inset:0;transform-origin:0 0}
+  #map{position:absolute;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-drag:none}
+  #ov{position:absolute;inset:0;width:100%;height:100%}
+  .hint{font-size:12px;color:var(--muted);max-width:900px;margin:7px auto 0;line-height:1.7}
+  .hint code{background:var(--card);padding:1px 6px;border-radius:5px}
+  circle.nd{cursor:pointer}
+  .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ok);color:#04220f;
+         padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;transition:.3s;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+  <h1 id="title">🛠️ محرّر شبكة الممرات</h1>
+  <div class="bar">
+    <button id="flr1">الأرضي</button>
+    <button id="flr2">الأول</button>
+    <div class="sep"></div>
+    <button id="tDraw" class="on">✏️ رسم ممر</button>
+    <button id="tMove">✋ تحريك</button>
+    <button id="tLink">🔗 ربط</button>
+    <button id="tDel">🗑️ حذف</button>
+    <button id="penNew">✂️ خط جديد</button>
+    <button id="tAddExit">➕ مخرج</button>
+    <div class="sep"></div>
+    <button id="tTest">🧪 اختبار مسار</button>
+    <div class="sep"></div>
+    <button id="undo">↶ تراجع</button>
+    <button id="toggleRooms">إخفاء القاعات</button>
+    <button id="export">💾 تصدير</button>
+    <span id="info"></span>
+  </div>
+  <div class="stage" id="stage">
+    <div id="wrap">
+      <img id="map" src="map-1.png" alt="خريطة">
+      <svg id="ov" viewBox="0 0 901 988" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+  </div>
+  <div class="hint">
+    <b>✏️ رسم ممر:</b> اضغط على الممر نقطة بعد نقطة، وكل ضغطة تنوصل باللي قبلها (زي القلم). اضغط قرب نقطة موجودة عشان تلتصق فيها (تفريعة/دائرة).
+    &nbsp;|&nbsp; <b>✂️ خط جديد:</b> يرفع القلم عشان تبدأ ممر منفصل (أو زر <code>Esc</code>).
+    &nbsp;|&nbsp; <b>✋ تحريك:</b> اسحب نقطة لمكانها. <b>عجلة الماوس</b> تكبّر، <b>اسحب الفراغ</b> يحرّك.
+    &nbsp;|&nbsp; <b>🔗 ربط / 🗑️ حذف</b> نقاط. &nbsp;|&nbsp; <b style="color:var(--exit)">المخارج الحمرا:</b> <b>➕ مخرج</b> يضيف، وبأداة ✋ تسحبها، وبأداة 🗑️ تحذفها. &nbsp;|&nbsp; <b style="color:var(--room)">القاعات/المكاتب (الزرقا):</b> بأداة ✋ اسحبها لبابها الصحيح. &nbsp;|&nbsp; <b>الأرضي/الأول:</b> تبديل الدور. &nbsp;|&nbsp; بعد ما تخلص: <b>💾 تصدير</b>.
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script src="rooms.js"></script>
+  <script src="skel.js"></script>
+  <script src="skel2.js"></script>
+  <script>
+  const SVGNS="http://www.w3.org/2000/svg", ov=document.getElementById("ov"), info=document.getElementById("info");
+  // ---- floor config (?floor=1 الأرضي  |  ?floor=2 الأول) ----
+  const FLOOR = (+new URLSearchParams(location.search).get("floor"))===2 ? 2 : 1;
+  const CFG = {
+    1:{img:"map-1.png", skel:window.SKEL,  skelVar:"SKEL",  skelFile:"skel.js",  label:"الأرضي"},
+    2:{img:"map-2.png", skel:window.SKEL2, skelVar:"SKEL2", skelFile:"skel2.js", label:"الأول"}
+  }[FLOOR];
+  document.getElementById("map").src = CFG.img;
+  document.getElementById("title").textContent = "🛠️ محرّر شبكة الممرات — الدور " + CFG.label;
+  document.title = "محرّر — الدور " + CFG.label;
+  document.getElementById("flr"+FLOOR).classList.add("on");
+  document.getElementById("flr1").addEventListener("click",()=>location.search="?floor=1");
+  document.getElementById("flr2").addEventListener("click",()=>location.search="?floor=2");
+  const SKEL = CFG.skel;
+  let N=SKEL.nodes.map(([x,y])=>({x,y}));
+  let E=SKEL.edges.map(e=>e.slice());
+  let EX=SKEL.exits.map(([x,y])=>({x,y})), SG=SKEL.exitSigns.map(([x,y])=>({x,y}));
+  let ROOMS=Object.entries(roomCoordinates).filter(([id,r])=>r.floor===FLOOR).map(([id,r])=>({id,x:r.x,y:r.y}));
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  let tool="draw", showRooms=true, selNode=-1, testRoute=null, penPrev=-1, mouseImg=null;
+  const hist=[];
+  function snapshot(){hist.push({N:N.map(n=>({...n})),E:E.map(e=>e.slice()),EX:EX.map(p=>({...p})),SG:SG.map(p=>({...p})),ROOMS:ROOMS.map(r=>({...r}))});if(hist.length>60)hist.shift();}
+  function toast(t){const el=document.getElementById("toast");el.textContent=t;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),1400);}
+
+  // ---- view (zoom/pan via CSS transform on #wrap: image + overlay move together) ----
+  const wrap=document.getElementById("wrap"), stage=document.getElementById("stage");
+  let vt={s:1,tx:0,ty:0};
+  function clampView(){const W=stage.clientWidth,H=stage.clientHeight;
+    if(vt.s<=1){vt.s=1;vt.tx=0;vt.ty=0;return;}
+    vt.tx=Math.min(0,Math.max(W*(1-vt.s),vt.tx));vt.ty=Math.min(0,Math.max(H*(1-vt.s),vt.ty));}
+  function applyView(){clampView();wrap.style.transform=`translate(${vt.tx}px,${vt.ty}px) scale(${vt.s})`;}
+  function toImg(ev){const pt=ov.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;return pt.matrixTransform(ov.getScreenCTM().inverse());}
+
+  // ---- graph analysis ----
+  function components(){
+    const g=N.map(()=>[]); E.forEach(([a,b])=>{g[a].push(b);g[b].push(a);});
+    const comp=N.map(()=>-1);let c=0;
+    for(let s=0;s<N.length;s++){if(comp[s]>=0)continue;comp[s]=c;const st=[s];while(st.length){const u=st.pop();for(const v of g[u])if(comp[v]<0){comp[v]=c;st.push(v);}}c++;}
+    // main = component with most nodes
+    const cnt={};comp.forEach(k=>cnt[k]=(cnt[k]||0)+1);
+    let main=0,mx=-1;for(const k in cnt)if(cnt[k]>mx){mx=cnt[k];main=+k;}
+    return {comp,main};
+  }
+  function projSeg(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,L2=dx*dx+dy*dy;let t=L2?((p.x-a.x)*dx+(p.y-a.y)*dy)/L2:0;t=Math.max(0,Math.min(1,t));const x=a.x+t*dx,y=a.y+t*dy;return{x,y,d:Math.hypot(p.x-x,p.y-y)};}
+  function nearestEdge(p){let best=null;E.forEach((e,ei)=>{const pr=projSeg(p,N[e[0]],N[e[1]]);if(!best||pr.d<best.d)best={...pr,edge:ei};});return best;}
+  function stats(){
+    const {comp,main}=components();
+    let roomsOK=0;
+    ROOMS.forEach(r=>{const ne=nearestEdge(r);if(ne&&comp[E[ne.edge][0]]===main)roomsOK++;});
+    const off=N.map((_,i)=>comp[i]!==main).filter(Boolean).length;
+    info.innerHTML=`النقاط: <b>${N.length}</b> · الخطوط: <b>${E.length}</b> · القاعات الموصولة: <b>${roomsOK}/${ROOMS.length}</b>`+
+      (off?` · <span class="warn">${off} نقطة منفصلة</span>`:` · <b>مترابطة ✓</b>`);
+    return {comp,main};
+  }
+
+  // ---- A* for test ----
+  function astar(nodes,adj,s,t){
+    const g=nodes.map(()=>Infinity),f=nodes.map(()=>Infinity),pr=nodes.map(()=>-1),open=new Set([s]);
+    g[s]=0;f[s]=dist(nodes[s],nodes[t]);
+    while(open.size){let cur=-1,bf=Infinity;open.forEach(i=>{if(f[i]<bf){bf=f[i];cur=i;}});if(cur===t)break;open.delete(cur);
+      for(const[nb,w]of adj[cur]){const ng=g[cur]+w;if(ng<g[nb]){g[nb]=ng;f[nb]=ng+dist(nodes[nb],nodes[t]);pr[nb]=cur;open.add(nb);}}}
+    if(pr[t]<0&&t!==s)return null;const path=[];let c=t;while(c!==-1){path.unshift(nodes[c]);c=pr[c];}return path;
+  }
+  function routeNearestExit(room){
+    let best=null;
+    for(const ex of EX){
+      const nodes=N.map(n=>({...n})),adj=nodes.map(()=>[]);
+      E.forEach(([a,b])=>{const w=dist(nodes[a],nodes[b]);adj[a].push([b,w]);adj[b].push([a,w]);});
+      const sp=(pr)=>{const[a,b]=E[pr.edge],i=nodes.length;nodes.push({x:pr.x,y:pr.y});adj.push([]);[a,b].forEach(k=>{const w=dist(nodes[k],nodes[i]);adj[k].push([i,w]);adj[i].push([k,w]);});return i;};
+      const rn=sp(nearestEdge(room));const rr=nodes.length;nodes.push({x:room.x,y:room.y});adj.push([]);const w=dist(nodes[rn],nodes[rr]);adj[rn].push([rr,w]);adj[rr].push([rn,w]);
+      const en=sp(nearestEdge(ex));const p=astar(nodes,adj,en,rr);
+      if(p){const L=p.reduce((s,_,i)=>i?s+dist(p[i-1],p[i]):0,0);if(!best||L<best.L)best={p,L};}
+    }
+    return best;
+  }
+
+  // ---- render ----
+  const el=(t,a)=>{const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+  let previewLine=null;
+  function render(){
+    const {comp,main}=stats();
+    ov.innerHTML="";
+    E.forEach(([a,b])=>ov.appendChild(el("line",{x1:N[a].x,y1:N[a].y,x2:N[b].x,y2:N[b].y,stroke:"var(--net)","stroke-width":2.4,"stroke-linecap":"round",opacity:.85})));
+    if(testRoute){ov.appendChild(el("path",{d:"M"+testRoute.p.map(p=>p.x+" "+p.y).join(" L "),fill:"none",stroke:"var(--path)","stroke-width":5,"stroke-linejoin":"round"}));}
+    if(showRooms)ROOMS.forEach(r=>{const c=el("circle",{cx:r.x,cy:r.y,r:3.4,fill:"var(--room)","fill-opacity":.55});const tt=el("title");tt.textContent=r.id;c.appendChild(tt);
+      c.style.cursor="pointer";c.addEventListener("click",ev=>{if(tool==="test"){ev.stopPropagation();const b=routeNearestExit(r);testRoute=b?{p:b.p}:null;toast(b?`مسار ${r.id} ≈ ${Math.round(b.L)}`:"ما فيه مسار");render();}});ov.appendChild(c);});
+    EX.forEach((x,i)=>{ov.appendChild(el("line",{x1:x.x,y1:x.y,x2:SG[i].x,y2:SG[i].y,stroke:"var(--exit)","stroke-width":2,opacity:.7}));
+      const sh=el("circle",{class:"nd",cx:SG[i].x,cy:SG[i].y,r:4,fill:"var(--exit)","fill-opacity":.55});sh.dataset.sgi=i;ov.appendChild(sh);
+      const c=el("circle",{class:"nd",cx:x.x,cy:x.y,r:7,fill:"var(--exit)"});c.dataset.exi=i;ov.appendChild(c);});
+    N.forEach((n,i)=>{const bad=comp[i]!==main;
+      const c=el("circle",{class:"nd",cx:n.x,cy:n.y,r:i===selNode||i===penPrev?7:4.5,fill:i===penPrev?"var(--ok)":i===selNode?"var(--sel)":bad?"var(--bad)":"var(--node)"});
+      c.dataset.i=i;ov.appendChild(c);});
+    // live pen preview line (kept after nodes so it's on top)
+    previewLine=el("line",{stroke:"var(--net)","stroke-width":2,"stroke-dasharray":"6 5",opacity:.7});
+    previewLine.style.display="none";ov.appendChild(previewLine);
+  }
+
+  // ---- hit test ----
+  function pickNode(p){const spp=901/((stage.clientWidth||900)*vt.s);let rad=13*spp,bd=rad*rad,best=-1;for(let i=0;i<N.length;i++){const d=(N[i].x-p.x)**2+(N[i].y-p.y)**2;if(d<bd){bd=d;best=i;}}return best;}
+  function pickExit(p){const spp=901/((stage.clientWidth||900)*vt.s),rad=13*spp,bd0=rad*rad;let best=null,bd=bd0;
+    EX.forEach((x,i)=>{const d=(x.x-p.x)**2+(x.y-p.y)**2;if(d<bd){bd=d;best={ex:i};}});
+    SG.forEach((x,i)=>{const d=(x.x-p.x)**2+(x.y-p.y)**2;if(d<bd){bd=d;best={sg:i};}});
+    return best;}
+  function pickRoom(p){const spp=901/((stage.clientWidth||900)*vt.s),rad=13*spp,bd=rad*rad;let best=-1,bb=bd;for(let i=0;i<ROOMS.length;i++){const d=(ROOMS[i].x-p.x)**2+(ROOMS[i].y-p.y)**2;if(d<bb){bb=d;best=i;}}return best;}
+
+  // ---- interactions ----
+  let drag=null, panning=null;
+  ov.addEventListener("pointerdown",ev=>{
+    ov.setPointerCapture(ev.pointerId);
+    const p=toImg(ev), i=pickNode(p);
+    if(tool==="move"){
+      const xh=pickExit(p);
+      if(xh){snapshot();drag=xh;}
+      else {
+        const ri=showRooms?pickRoom(p):-1;
+        const dr=ri>=0?(ROOMS[ri].x-p.x)**2+(ROOMS[ri].y-p.y)**2:Infinity;
+        const dn=i>=0?(N[i].x-p.x)**2+(N[i].y-p.y)**2:Infinity;
+        if(ri>=0&&dr<=dn){snapshot();drag={room:ri};}
+        else if(i>=0){snapshot();drag={i};}
+        else {panning={x:ev.clientX,y:ev.clientY,tx:vt.tx,ty:vt.ty};}
+      }
+    } else if(tool==="draw"){
+      snapshot();
+      let cur;
+      if(i>=0){cur=i;}                                   // snap to existing node
+      else {cur=N.length;N.push({x:+p.x.toFixed(1),y:+p.y.toFixed(1)});}
+      if(penPrev>=0 && penPrev!==cur &&
+         !E.some(e=>(e[0]===penPrev&&e[1]===cur)||(e[0]===cur&&e[1]===penPrev)))
+        E.push([penPrev,cur]);
+      penPrev=cur;render();
+    } else if(tool==="link"){
+      if(i>=0){if(selNode<0){selNode=i;render();}else if(selNode!==i){snapshot();if(!E.some(e=>(e[0]===selNode&&e[1]===i)||(e[0]===i&&e[1]===selNode)))E.push([selNode,i]);selNode=-1;render();toast("تم الربط");}else{selNode=-1;render();}}
+    } else if(tool==="del"){
+      const xh=pickExit(p);
+      if(xh){snapshot();const idx=xh.ex!=null?xh.ex:xh.sg;EX.splice(idx,1);SG.splice(idx,1);render();toast("حُذف المخرج");}
+      else if(i>=0){snapshot();delNode(i);render();toast("حُذفت");}
+    } else if(tool==="addexit"){
+      snapshot();const x=+p.x.toFixed(1),y=+p.y.toFixed(1);
+      EX.push({x,y});SG.push({x,y:+(y-32).toFixed(1)});render();toast("أُضيف مخرج — اسحب لوحته بأداة ✋");
+    } else if(tool==="test"){
+      if(i<0){panning={x:ev.clientX,y:ev.clientY,tx:vt.tx,ty:vt.ty};}
+    }
+  });
+  ov.addEventListener("pointermove",ev=>{
+    if(drag){const p=toImg(ev),x=+p.x.toFixed(1),y=+p.y.toFixed(1);
+      if(drag.ex!=null){EX[drag.ex].x=x;EX[drag.ex].y=y;}
+      else if(drag.sg!=null){SG[drag.sg].x=x;SG[drag.sg].y=y;}
+      else if(drag.room!=null){ROOMS[drag.room].x=x;ROOMS[drag.room].y=y;}
+      else{N[drag.i].x=x;N[drag.i].y=y;}
+      render();}
+    else if(panning){vt.tx=panning.tx+(ev.clientX-panning.x);vt.ty=panning.ty+(ev.clientY-panning.y);applyView();}
+    else if(tool==="draw"&&penPrev>=0&&previewLine){const p=toImg(ev);
+      previewLine.setAttribute("x1",N[penPrev].x);previewLine.setAttribute("y1",N[penPrev].y);
+      previewLine.setAttribute("x2",p.x);previewLine.setAttribute("y2",p.y);previewLine.style.display="";}
+  });
+  ov.addEventListener("pointerup",ev=>{drag=null;panning=null;});
+  ov.addEventListener("wheel",ev=>{ev.preventDefault();
+    const rect=stage.getBoundingClientRect();
+    const cx=ev.clientX-rect.left, cy=ev.clientY-rect.top;
+    const f=ev.deltaY<0?1.15:1/1.15;
+    const ns=Math.min(6,Math.max(1,vt.s*f)), g=ns/vt.s;
+    vt.tx=cx-(cx-vt.tx)*g; vt.ty=cy-(cy-vt.ty)*g; vt.s=ns; applyView();},{passive:false});
+
+  function delNode(i){
+    N.splice(i,1);
+    E=E.filter(e=>e[0]!==i&&e[1]!==i).map(e=>[e[0]>i?e[0]-1:e[0], e[1]>i?e[1]-1:e[1]]);
+    if(selNode===i)selNode=-1;
+  }
+
+  // ---- toolbar ----
+  const tools={draw:"tDraw",move:"tMove",link:"tLink",del:"tDel",addexit:"tAddExit",test:"tTest"};
+  function setTool(t){tool=t;selNode=-1;penPrev=-1;if(t!=="test")testRoute=null;for(const k in tools)document.getElementById(tools[k]).classList.toggle("on",k===t);render();}
+  for(const k in tools)document.getElementById(tools[k]).addEventListener("click",()=>setTool(k));
+  document.getElementById("penNew").addEventListener("click",()=>{penPrev=-1;if(previewLine)previewLine.style.display="none";toast("قلم مرفوع — ابدأ خط جديد");});
+  window.addEventListener("keydown",e=>{if(e.key==="Escape"){penPrev=-1;if(previewLine)previewLine.style.display="none";}});
+  document.getElementById("undo").addEventListener("click",()=>{if(hist.length){const s=hist.pop();N=s.N;E=s.E;if(s.EX)EX=s.EX;if(s.SG)SG=s.SG;if(s.ROOMS)ROOMS=s.ROOMS;selNode=-1;render();toast("تراجع");}});
+  document.getElementById("toggleRooms").addEventListener("click",e=>{showRooms=!showRooms;e.target.textContent=showRooms?"إخفاء القاعات":"إظهار القاعات";render();});
+  function dl(name,text){const blob=new Blob([text],{type:"text/javascript"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);}
+  document.getElementById("export").addEventListener("click",()=>{
+    // 1) شبكة الممرات + المخارج للدور الحالي (skel.js للأرضي / skel2.js للأول)
+    const skel={nodes:N.map(n=>[+n.x.toFixed(1),+n.y.toFixed(1)]),edges:E,exits:EX.map(e=>[+e.x.toFixed(1),+e.y.toFixed(1)]),exitSigns:SG.map(e=>[+e.x.toFixed(1),+e.y.toFixed(1)]),IMG_W:901,IMG_H:988};
+    dl(CFG.skelFile,"window."+CFG.skelVar+" = "+JSON.stringify(skel)+";\n");
+    // 2) rooms.js — نحدّث قاعات الدور الحالي فقط ونبقّي بقية الأدوار زي ما هي
+    const edited={};ROOMS.forEach(r=>edited[r.id]={x:+r.x.toFixed(1),y:+r.y.toFixed(1)});
+    const rc={};for(const id in roomCoordinates){const o=roomCoordinates[id];rc[id]=edited[id]?{x:edited[id].x,y:edited[id].y,floor:o.floor}:{...o};}
+    setTimeout(()=>dl("rooms.js","window.roomCoordinates = "+JSON.stringify(rc,null,2)+";\n"),400);
+    toast("نزّل "+CFG.skelFile+" + rooms.js — احفظهم مكان القدام");
+  });
+  render();
+  </script>
+</body>
+</html>

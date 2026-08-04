@@ -1,0 +1,231 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>خريطة القاعات — كلية العلوم الزراعية والأغذية — جامعة الملك فيصل</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Welcome Screen -->
+  <div id="welcomeScreen" class="welcome-screen">
+    <div class="welcome-content">
+      <div class="welcome-icon">🗺️</div>
+      <h1 class="welcome-title">خريطة القاعات</h1>
+      <p class="welcome-subtitle">كلية العلوم الزراعية والأغذية</p>
+      <p class="welcome-subtitle">جامعة الملك فيصل</p>
+      <button id="enterMapBtn" class="btn-enter">دخول الخريطة 🚀</button>
+      <p class="welcome-note">مبادرة لتسهيل الوصول للقاعات</p>
+    </div>
+  </div>
+
+  <div class="tooltip" id="tooltip">اسحب للخريطة، واستخدم التكبير/التصغير باللمس</div>
+
+  <header class="topbar" role="banner">
+    <button id="theme-toggle" class="theme-btn" aria-label="تبديل الوضع">🌙</button>
+    <h1 class="brand">خريطة القاعات</h1>
+    <button id="menuToggle" class="menu-toggle" aria-label="فتح القائمة" aria-expanded="false">
+      <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+    </button>
+  </header>
+
+  <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
+
+  <nav id="sidebar" class="sidebar" aria-hidden="true">
+    <button id="closeSidebar" class="close-btn" aria-label="إغلاق القائمة">×</button>
+    <h2 class="side-h2">القائمة</h2>
+    <div class="side-actions">
+      <button id="openHomeInfo" class="btn-primary large">تعريف</button>
+      <button id="openDoctorModal" class="btn-primary large doctor-btn">🎓 مكتب دكتورك</button>
+      <button id="openEmailModal" class="btn-primary large">استخراج البريد الجامعي</button>
+      <button id="openComplaintModal" class="btn-primary large accent">تواصل معنا / ارفع اقتراح</button>
+
+      <!-- رقم العميد الصحيح بصيغة دولية (966 + الرقم بدون صفر البداية) -->
+      <a id="waDeanBtn" class="btn-primary large" href="https://wa.me/9660135895711?text=%D8%B3%D9%84%D8%A7%D9%85" target="_blank" rel="noopener noreferrer" role="button">مراسلة العميد عبر واتساب</a>
+
+      <button id="openDeanModal" class="btn-primary large">عن العميد</button>
+
+      <div class="about-frame" style="margin-top:8px;">
+        <button id="openAboutModal" class="btn-about">من نحن</button>
+      </div>
+    </div>
+
+    <div class="credit-card" aria-hidden="false" style="margin-top:12px;">
+      <div class="credit-inner">
+        <div class="credit-title">تصميم وبرمجة</div>
+        <div id="creditName" class="credit-name">فهد القحطاني</div>
+        <div class="credit-meta">طالب كلية العلوم الزراعية والأغذية — مطوّر واجهات إلكترونية والألعاب التفاعلية</div>
+        <div class="credit-badge">✨ v1.0</div>
+      </div>
+      <div class="credit-holo"></div>
+    </div>
+  </nav>
+
+  <main class="content">
+    <div id="mapContainer" class="map-container" aria-label="خريطة القاعات">
+      <div id="mapWrapper" class="map-wrapper">
+        <!-- استبدل map-1.png بصورتك الفعلية -->
+        <img id="mapImage" src="map-1.png" alt="خريطة القاعات">
+        <canvas id="pathCanvas" aria-hidden="true"></canvas>
+        <div id="pin" aria-hidden="true" title="موقع القاعة"></div>
+        <div id="animMarker" aria-hidden="true" title="مؤشر المسار"></div>
+      </div>
+    </div>
+
+    <aside class="form-container" aria-label="أدوات البحث">
+      <div id="stairsSlot"></div>
+
+      <label for="roomInput" class="visually-hidden">رقم القاعة</label>
+      <input type="text" id="roomInput" list="roomList" placeholder="اكتب رقم القاعة" aria-label="رقم القاعة">
+      <datalist id="roomList"></datalist>
+
+      <div class="form-actions">
+        <button id="searchBtn" class="btn-primary">ابحث</button>
+        <button id="resetBtn" class="btn-secondary">إعادة تعيين</button>
+      </div>
+
+      <p id="errorMessage" class="error-message" role="status" aria-live="polite" style="display:none;">يرجى إدخال رقم قاعة صحيح.</p>
+    </aside>
+  </main>
+
+  <footer class="footer">الحقوق محفوظة للطالب فهد القحطاني © 2025</footer>
+
+  <!-- Home Info Modal -->
+  <div id="homeInfoModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="homeTitle" aria-modal="true">
+    <div class="modal-backdrop" id="homeBackdrop"></div>
+    <div class="modal-card fullscreen" role="document" aria-labelledby="homeTitle">
+      <button id="closeHomeInfo" class="modal-close" data-close aria-label="إغلاق">×</button>
+      <h3 id="homeTitle">عن خريطة القاعات</h3>
+      <pre id="homeTyping" class="typing-output" aria-live="polite">مبادرة طلابية لتسهيل الوصول إلى القاعات داخل كلية العلوم الزراعية والأغذية.</pre>
+      <div style="margin-top:12px;text-align:left;"><button id="closeHomeInfoBtn" class="btn-secondary" data-close>إغلاق</button></div>
+    </div>
+  </div>
+
+  <!-- Email Modal -->
+  <div id="emailModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="modalTitle" aria-modal="true">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-card email-fancy fullscreen" role="document" aria-labelledby="modalTitle">
+      <button id="closeModal" class="modal-close" data-close aria-label="إغلاق">×</button>
+      <h3 id="modalTitle">استخراج البريد الجامعي</h3>
+      <p class="hint email-hint">أدخل الرقم الجامعي لإظهار البريد الرسمي الخاص بك</p>
+      <label for="uniIdInput">الرقم الجامعي</label>
+      <input id="uniIdInput" type="text" placeholder="مثال: 221122334" inputmode="numeric">
+
+      <div class="modal-row" style="margin-top:8px;">
+        <button id="genEmailBtn" class="btn-primary">استخرج</button>
+        <button id="closeModalBtn" class="btn-secondary" data-close>إغلاق</button>
+      </div>
+
+      <div id="emailResult" class="email-result" style="display:none;margin-top:10px;">
+        <input id="emailOutput" readonly>
+        <div class="modal-row" style="margin-top:8px;">
+          <button id="copyEmailBtn" class="btn-copy">نسخ</button>
+          <button id="openMailBtn" class="btn-primary">فتح في البريد</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Complaint Modal -->
+  <div id="complaintModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="complaintTitle" aria-modal="true">
+    <div class="modal-backdrop" id="complaintBackdrop"></div>
+    <div class="modal-card fullscreen" role="document" aria-labelledby="complaintTitle">
+      <button id="closeComplaint" class="modal-close" data-close aria-label="إغلاق">×</button>
+      <h3 id="complaintTitle">✉️ تواصل معنا / رفع اقتراح</h3>
+      <div class="complaint-instructions">
+        <strong>ماذا تفعل هذه النافذة؟</strong>
+        <p>أرسل لنا ملاحظة، شكوى، أو اقتراح لتحسين الخريطة. سيتلقاها فريق الدعم مباشرة.</p>
+      </div>
+
+      <div class="grid">
+        <label for="complainName">الاسم الكامل <span style="color:#dc2626;">*</span></label>
+        <input id="complainName" type="text" placeholder="أدخل الاسم بالعربي فقط" required>
+
+        <label for="complainUni">الرقم الجامعي <span style="color:#dc2626;">*</span></label>
+        <input id="complainUni" type="text" inputmode="numeric" placeholder="مثال: 221122334" required>
+
+        <label for="complainPhone">رقم الجوال <span style="color:#dc2626;">*</span></label>
+        <input id="complainPhone" type="tel" inputmode="numeric" placeholder="مثال: 0512345678" required>
+
+        <label for="complainMsg">نص الشكوى / الاقتراح</label>
+        <textarea id="complainMsg" rows="6" placeholder="اكتب الشكوى أو الاقتراح..."></textarea>
+
+        <label for="complainFile">إرفاق صورة (اختياري)</label>
+        <input id="complainFile" type="file" accept="image/*">
+
+        <div id="previewWrap" class="preview-wrap" style="display:none;">
+          <div class="preview-title">معاينة الصورة المرفقة:</div>
+          <img id="previewImg" src="" alt="معاينة">
+          <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;">
+            <button id="removePreview" class="btn-secondary small" data-remove>❌ إزالة الصورة</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-row" style="margin-top:12px;">
+        <button id="sendComplaintBtn" class="btn-primary accent">أرسل</button>
+        <button id="closeComplaintBtn" class="btn-secondary" data-close>إغلاق</button>
+      </div>
+
+      <div id="complaintStatus" class="status" style="margin-top:10px;"></div>
+      <div class="note" style="margin-top:8px;">ملاحظة: سيتم الرد في أقرب وقت ممكن وشكرًا لتفهمكم.</div>
+    </div>
+  </div>
+
+  <!-- Dean Modal -->
+  <div id="deanModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="deanTitle" aria-modal="true">
+    <div class="modal-backdrop" id="deanBackdrop"></div>
+    <div class="modal-card fullscreen" role="document" aria-labelledby="deanTitle">
+      <button id="closeDean" class="modal-close" data-close aria-label="إغلاق">×</button>
+      <h3 id="deanTitle">عميد الكلية</h3>
+      <div class="modal-inner">
+        <p><strong>اللقب:</strong> عميد كلية العلوم الزراعية والأغذية</p>
+        <p><strong>الدور:</strong> مسؤول عن إدارة الكلية وأقسامها العلمية.</p>
+        <p><strong>كيفية التواصل:</strong> اضغط "مراسلة العميد عبر واتساب" في القائمة لإرسال رسالة مباشرة.</p>
+        <div style="margin-top:12px;text-align:left;"><button id="closeDeanBtn" class="btn-secondary" data-close>إغلاق</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- About Modal (واحد فقط, مُصلح النص) -->
+  <div id="aboutModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="aboutTitle" aria-modal="true">
+    <div class="modal-backdrop" id="aboutBackdrop"></div>
+    <div class="modal-card fullscreen" role="document" aria-labelledby="aboutTitle">
+      <button id="closeAbout" class="modal-close" data-close aria-label="إغلاق">×</button>
+      <h3 id="aboutTitle">من نحن</h3>
+      <div class="typing-output about-text">
+        <p><strong>فريق خريطة القاعات</strong> — مبادرة تهدف لتسهيل الوصول إلى القاعات داخل كلية العلوم الزراعية والأغذية.</p>
+        <p>نرحب بالمساهمات والاقتراحات لتحسين التجربة.</p>
+      </div>
+      <div style="margin-top:12px;text-align:left;"><button id="closeAboutBtn" class="btn-secondary" data-close>إغلاق</button></div>
+    </div>
+  </div>
+
+  <!-- Doctor Modal - مكاتب الدكاترة -->
+  <div id="doctorModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="doctorTitle" aria-modal="true">
+    <div class="modal-backdrop" id="doctorBackdrop"></div>
+    <div class="modal-card fullscreen" role="document" aria-labelledby="doctorTitle">
+      <button id="closeDoctor" class="modal-close" data-close aria-label="إغلاق">×</button>
+      <h3 id="doctorTitle">🎓 مكتب دكتورك</h3>
+      <p class="hint">ابحث عن مكتب الدكتور بالاسم أو رقم المكتب 🔍</p>
+      
+      <input id="doctorSearchInput" class="doctor-search" type="text" placeholder="اكتب اسم الدكتور أو رقم المكتب...">
+
+      
+      <div id="doctorList" class="doctor-list"></div>
+      
+      <div style="margin-top:12px;text-align:left;">
+        <button id="closeDoctorBtn" class="btn-secondary" data-close>إغلاق</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- external data + scripts (مضمّنة مرة واحدة) -->
+  <script src="rooms.js" defer></script>
+  <!-- paths.rel.js سيتم تحميله عند الطلب (lazy-load) لتحسين الأداء -->
+  <script src="doctors.js" defer></script>
+  <script src="script.js" defer></script>
+</body>
+
+</html>
