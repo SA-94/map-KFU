@@ -3,9 +3,13 @@ _serve.js
 _test-paths.html
 _backup/
 
-# نسخة قديمة مكرّرة من نفس الريبو
+# نسخة العمل المحلية (المحتوى نفسه صار في جذر المستودع)
 map-KFU-main/
 
-# نظام
+# نظام ومحررات
 .DS_Store
 Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.bak

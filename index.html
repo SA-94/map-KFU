@@ -1,11 +1,29 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>خريطة القاعات — كلية العلوم الزراعية والأغذية — جامعة الملك فيصل</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <meta name="description" content="خريطة تفاعلية للوصول إلى قاعات ومكاتب كلية العلوم الزراعية والأغذية بجامعة الملك فيصل، مع مسار مرئي خطوة بخطوة ودعم الدورين.">
+  <meta name="theme-color" content="#10b981">
+
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="خريطة القاعات">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="خريطة القاعات — كلية العلوم الزراعية والأغذية">
+  <meta property="og:description" content="اعرف موقع أي قاعة أو مكتب داخل الكلية، مع مسار مرئي من المدخل حتى الباب.">
+  <meta property="og:image" content="assets/icons/icon-512.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/sidebar-lux.css">
 </head>
 <body>
   <!-- Welcome Screen -->
@@ -15,6 +33,21 @@
       <h1 class="welcome-title">خريطة القاعات</h1>
       <p class="welcome-subtitle">كلية العلوم الزراعية والأغذية</p>
       <p class="welcome-subtitle">جامعة الملك فيصل</p>
+      <div class="welcome-switcher" aria-label="اختيار الكلية قبل الدخول">
+        <div class="welcome-field">
+          <label for="welcomeCollegeSelect">اختر الكلية</label>
+          <select id="welcomeCollegeSelect" aria-label="اختر الكلية">
+            <option value="">-- اختر الكلية --</option>
+          </select>
+        </div>
+        <div class="welcome-field">
+          <label for="welcomeAudienceSelect">اختر الشطر</label>
+          <select id="welcomeAudienceSelect" aria-label="اختر الشطر" disabled>
+            <option value="">-- اختر الشطر --</option>
+          </select>
+        </div>
+        <p id="welcomeSelectionHint" class="welcome-selection-hint">اختر الكلية والشطر أولاً.</p>
+      </div>
       <button id="enterMapBtn" class="btn-enter">دخول الخريطة 🚀</button>
       <p class="welcome-note">مبادرة لتسهيل الوصول للقاعات</p>
     </div>
@@ -30,21 +63,19 @@
     </button>
   </header>
 
-  <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
-
-  <nav id="sidebar" class="sidebar" aria-hidden="true">
+  <nav id="sidebar" class="sidebar" aria-hidden="true" inert>
     <button id="closeSidebar" class="close-btn" aria-label="إغلاق القائمة">×</button>
     <h2 class="side-h2">القائمة</h2>
     <div class="side-actions">
       <button id="openHomeInfo" class="btn-primary large">تعريف</button>
       <button id="openDoctorModal" class="btn-primary large doctor-btn">🎓 مكتب دكتورك</button>
       <button id="openEmailModal" class="btn-primary large">استخراج البريد الجامعي</button>
-      <button id="openComplaintModal" class="btn-primary large accent">تواصل معنا / ارفع اقتراح</button>
 
-      <!-- رقم العميد الصحيح بصيغة دولية (966 + الرقم بدون صفر البداية) -->
-      <a id="waDeanBtn" class="btn-primary large" href="https://wa.me/9660135895711?text=%D8%B3%D9%84%D8%A7%D9%85" target="_blank" rel="noopener noreferrer" role="button">مراسلة العميد عبر واتساب</a>
+      <!-- رقم العميد بصيغة دولية صحيحة: 966 + الرقم بدون صفر البداية -->
+      <a id="waDeanBtn" class="btn-primary large" href="https://wa.me/966135895711" target="_blank" rel="noopener noreferrer" role="button">مراسلة العميد عبر واتساب</a>
 
       <button id="openDeanModal" class="btn-primary large">عن العميد</button>
+      <button id="openComplaintModal" class="btn-primary large accent">✉️ الشكاوى والاقتراحات</button>
 
       <div class="about-frame" style="margin-top:8px;">
         <button id="openAboutModal" class="btn-about">من نحن</button>
@@ -56,7 +87,8 @@
         <div class="credit-title">تصميم وبرمجة</div>
         <div id="creditName" class="credit-name">فهد القحطاني</div>
         <div class="credit-meta">طالب كلية العلوم الزراعية والأغذية — مطوّر واجهات إلكترونية والألعاب التفاعلية</div>
-        <div class="credit-badge">✨ v1.0</div>
+        <div class="credit-supervisor">بإشراف الأستاذ منصور البحري</div>
+        <div class="credit-badge">✨ v1.1</div>
       </div>
       <div class="credit-holo"></div>
     </div>
@@ -66,7 +98,7 @@
     <div id="mapContainer" class="map-container" aria-label="خريطة القاعات">
       <div id="mapWrapper" class="map-wrapper">
         <!-- استبدل map-1.png بصورتك الفعلية -->
-        <img id="mapImage" src="map-1.png" alt="خريطة القاعات">
+        <img id="mapImage" src="assets/maps/map-1.png" alt="خريطة القاعات">
         <canvas id="pathCanvas" aria-hidden="true"></canvas>
         <div id="pin" aria-hidden="true" title="موقع القاعة"></div>
         <div id="animMarker" aria-hidden="true" title="مؤشر المسار"></div>
@@ -89,7 +121,11 @@
     </aside>
   </main>
 
-  <footer class="footer">الحقوق محفوظة للطالب فهد القحطاني © 2025</footer>
+  <button id="floatingComplaintBtn" class="floating-complaint-btn is-hidden" aria-label="فتح الشكاوى" title="الشكاوى والاقتراحات">
+    ✉️
+  </button>
+
+  <footer class="footer">الحقوق محفوظة للطالب فهد القحطاني © 2025 — بإشراف الأستاذ منصور البحري</footer>
 
   <!-- Home Info Modal -->
   <div id="homeInfoModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="homeTitle" aria-modal="true">
@@ -196,6 +232,7 @@
       <h3 id="aboutTitle">من نحن</h3>
       <div class="typing-output about-text">
         <p><strong>فريق خريطة القاعات</strong> — مبادرة تهدف لتسهيل الوصول إلى القاعات داخل كلية العلوم الزراعية والأغذية.</p>
+        <p><strong>بإشراف:</strong> الأستاذ منصور البحري.</p>
         <p>نرحب بالمساهمات والاقتراحات لتحسين التجربة.</p>
       </div>
       <div style="margin-top:12px;text-align:left;"><button id="closeAboutBtn" class="btn-secondary" data-close>إغلاق</button></div>
@@ -210,8 +247,7 @@
       <h3 id="doctorTitle">🎓 مكتب دكتورك</h3>
       <p class="hint">ابحث عن مكتب الدكتور بالاسم أو رقم المكتب 🔍</p>
       
-      <input id="doctorSearchInput" class="doctor-search" type="text" placeholder="اكتب اسم الدكتور أو رقم المكتب...">
-
+      <input id="doctorSearchInput" class="doctor-search-input" type="text" placeholder="اكتب اسم الدكتور أو رقم المكتب...">
       
       <div id="doctorList" class="doctor-list"></div>
       
@@ -222,10 +258,20 @@
   </div>
 
   <!-- external data + scripts (مضمّنة مرة واحدة) -->
-  <script src="rooms.js" defer></script>
+  <script src="js/dataset.registry.js" defer></script>
+  <script src="data/agri-food/male/rooms.js" defer></script>
   <!-- paths.rel.js سيتم تحميله عند الطلب (lazy-load) لتحسين الأداء -->
-  <script src="doctors.js" defer></script>
-  <script src="script.js" defer></script>
+  <script src="data/agri-food/male/doctors.js" defer></script>
+  <script src="js/script.js" defer></script>
+
+  <!-- عامل الخدمة: يجعل الخريطة تعمل بدون إنترنت داخل المبنى -->
+  <script>
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 
 </html>
