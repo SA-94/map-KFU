@@ -1,17 +1,21 @@
 /* sw.js — عامل الخدمة: يجعل الخريطة تعمل بدون إنترنت داخل المبنى.
    ارفع رقم النسخة عند أي تعديل على الملفات حتى تصل التحديثات للطلاب. */
-const CACHE = 'kfu-map-v1';
+/* يجب أن يطابق ASSET_VERSION في js/script.js و?v= في index.html */
+const VERSION = '1.1.0';
+const CACHE = 'kfu-map-v' + VERSION;
 
+/* الملفات التي تُطلب بوسم نسخة يجب تخزينها بنفس الوسم،
+   وإلا خزّنّا عناوين لا يطلبها أحد وتعطّل العمل بدون إنترنت. */
 const APP_SHELL = [
   './',
   './index.html',
-  './css/style.css',
-  './css/sidebar-lux.css',
-  './js/dataset.registry.js',
-  './js/script.js',
-  './data/agri-food/male/rooms.js',
-  './data/agri-food/male/doctors.js',
-  './data/agri-food/male/paths.rel.js',
+  './css/style.css?v=' + VERSION,
+  './css/sidebar-lux.css?v=' + VERSION,
+  './js/dataset.registry.js?v=' + VERSION,
+  './js/script.js?v=' + VERSION,
+  './data/agri-food/male/rooms.js?v=' + VERSION,
+  './data/agri-food/male/doctors.js?v=' + VERSION,
+  './data/agri-food/male/paths.rel.js?v=' + VERSION,
   './assets/maps/map-1.png',
   './assets/maps/map-2.png',
   './assets/icon.svg',

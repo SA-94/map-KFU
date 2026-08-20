@@ -99,6 +99,8 @@ let doctorsData         = window.doctorsData || [];
 let pathsMap          = window.pathsMap || {}; // سيتم تحميله عند الطلب (lazy-load)
 let pathsLoading      = false; // علامة لمنع التحميل المتكرر
 let pathsLoaded       = false; // علامة لتتبع حالة التحميل
+/* غيّر هذا الرقم مع كل تحديث حتى يصل للطلاب فوراً بدل النسخة المخزّنة */
+const ASSET_VERSION   = '1.1.0';
 let pathsScriptUrl    = 'data/agri-food/male/paths.rel.js';
 
 let datasetRegistry   = Array.isArray(window.datasetRegistry) ? window.datasetRegistry : [];
@@ -398,6 +400,26 @@ function refreshFloatingComplaintBtnVisibility(){
 }
 
 /* ---------------------------
+   قفل تمرير الصفحة خلف القائمة/النوافذ
+   --------------------------- */
+let lockedScrollY = 0;
+function refreshScrollLock(){
+  const html = document.documentElement;
+  const shouldLock = document.body.classList.contains('sidebar-open')
+                  || !!document.querySelector('.modal[aria-hidden="false"]');
+  const isLocked = html.classList.contains('scroll-locked');
+  if(shouldLock === isLocked) return;
+  if(shouldLock){
+    lockedScrollY = window.scrollY || html.scrollTop || 0;
+    html.classList.add('scroll-locked');
+  } else {
+    html.classList.remove('scroll-locked');
+    // أعِد الصفحة لموضعها حتى لا تقفز للأعلى عند الإغلاق
+    window.scrollTo(0, lockedScrollY);
+  }
+}
+
+/* ---------------------------
    إدارة القائمة الجانبية (مصدر واحد للحقيقة)
    --------------------------- */
 function setSidebarOpen(open){
@@ -415,6 +437,7 @@ function setSidebarOpen(open){
     stopCreditAuto();
   }
   refreshFloatingComplaintBtnVisibility();
+  refreshScrollLock();
 }
 function closeSidebarPanel(){
   if(sidebar && sidebar.getAttribute('aria-hidden') === 'false') setSidebarOpen(false);
@@ -856,7 +879,7 @@ function loadPathsIfNeeded(callback) {
   // ابدأ التحميل
   pathsLoading = true;
   const script = document.createElement('script');
-  script.src = pathsScriptUrl;
+  script.src = `${pathsScriptUrl}${pathsScriptUrl.includes('?') ? '&' : '?'}v=${ASSET_VERSION}`;
   script.onload = () => {
     pathsMap = window.pathsMap || {};
     pathsLoaded = true;
@@ -1181,6 +1204,7 @@ function openModal(modalEl, opts = {}){
     setTimeout(()=>{ try { const first = inner.querySelector('input,textarea,select,button'); if(first) first.focus(); } catch(e){} }, 60);
   }
   refreshFloatingComplaintBtnVisibility();
+  refreshScrollLock();
 }
 function closeModalGeneric(modalEl){
   if(!modalEl) return;
@@ -1194,6 +1218,7 @@ function closeModalGeneric(modalEl){
     const openModalExists = document.querySelector('.modal[aria-hidden="false"]');
     if(!openModalExists){ document.body.classList.remove('modal-open'); try { if (mapContainer) mapContainer.style.pointerEvents = ''; if (mapWrapper) mapWrapper.style.pointerEvents = ''; } catch(e){} }
     refreshFloatingComplaintBtnVisibility();
+    refreshScrollLock();
   }, 80);
   const card = modalEl.querySelector('.modal-card');
   if(card){ card.classList.remove('drop-active'); const inner = card.querySelector('.modal-inner'); if(inner){ inner.style.overflowY=''; inner.style['-webkit-overflow-scrolling']=''; inner.style.touchAction=''; inner.style.pointerEvents=''; disableModalTouchScroll(inner);} }

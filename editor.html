@@ -51,7 +51,7 @@
   </div>
   <div class="stage" id="stage">
     <div id="wrap">
-      <img id="map" src="map-1.png" alt="خريطة">
+      <img id="map" src="assets/maps/map-1.png" alt="خريطة">
       <svg id="ov" viewBox="0 0 901 988" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
   </div>
@@ -63,7 +63,7 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <script src="rooms.js"></script>
+  <script src="data/agri-food/male/rooms.js"></script>
   <script src="skel.js"></script>
   <script src="skel2.js"></script>
   <script>
@@ -71,8 +71,8 @@
   // ---- floor config (?floor=1 الأرضي  |  ?floor=2 الأول) ----
   const FLOOR = (+new URLSearchParams(location.search).get("floor"))===2 ? 2 : 1;
   const CFG = {
-    1:{img:"map-1.png", skel:window.SKEL,  skelVar:"SKEL",  skelFile:"skel.js",  label:"الأرضي"},
-    2:{img:"map-2.png", skel:window.SKEL2, skelVar:"SKEL2", skelFile:"skel2.js", label:"الأول"}
+    1:{img:"assets/maps/map-1.png", skel:window.SKEL,  skelVar:"SKEL",  skelFile:"skel.js",  label:"الأرضي"},
+    2:{img:"assets/maps/map-2.png", skel:window.SKEL2, skelVar:"SKEL2", skelFile:"skel2.js", label:"الأول"}
   }[FLOOR];
   document.getElementById("map").src = CFG.img;
   document.getElementById("title").textContent = "🛠️ محرّر شبكة الممرات — الدور " + CFG.label;

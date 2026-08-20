@@ -33,6 +33,12 @@ body.dark{
 html{height:100%;overflow-x:hidden}
 body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100vh;font-size:16px;line-height:1.7;font-weight:500;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-text-size-adjust:100%}
 body.modal-open{overflow:hidden}
+/* قفل تمرير الصفحة خلف القائمة الجانبية أو أي نافذة منبثقة.
+   يجب أن يكون على <html> لا على <body>: بما أن html له overflow-x:hidden
+   فهو حاوي التمرير، ولا ينتقل overflow من body إلى الصفحة، لذا كان
+   body.modal-open{overflow:hidden} بلا أي أثر. */
+html.scroll-locked{overflow:hidden}
+html.scroll-locked body{overflow:hidden}
 body.sidebar-open{background:var(--bg)}
 .tooltip{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:8px 12px;border-radius:6px;font-size:14px;z-index:2000;opacity:0;transition:opacity .3s}
 .tooltip.show{opacity:.95}
