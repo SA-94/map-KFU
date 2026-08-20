@@ -13,3 +13,6 @@ Desktop.ini
 .vscode/
 .idea/
 *.bak
+
+# إعدادات محلية لأدوات التطوير
+.claude/

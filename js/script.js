@@ -100,7 +100,7 @@ let pathsMap          = window.pathsMap || {}; // سيتم تحميله عند �
 let pathsLoading      = false; // علامة لمنع التحميل المتكرر
 let pathsLoaded       = false; // علامة لتتبع حالة التحميل
 /* غيّر هذا الرقم مع كل تحديث حتى يصل للطلاب فوراً بدل النسخة المخزّنة */
-const ASSET_VERSION   = '1.1.0';
+const ASSET_VERSION   = '1.2.0';
 let pathsScriptUrl    = 'data/agri-food/male/paths.rel.js';
 
 let datasetRegistry   = Array.isArray(window.datasetRegistry) ? window.datasetRegistry : [];
@@ -468,24 +468,23 @@ function rand(min, max){ return Math.floor(Math.random() * (max - min + 1)) + mi
 function hsl(h,s,l){ return `hsl(${h} ${s}% ${l}%)`; }
 
 function generatePalette(){
-  /* تبقى ضمن عائلة الأخضر للحفاظ على هوية الكلية، مع تنويع خفيف يعطي إحساساً بالحياة.
-     ملاحظة مهمة: لا نُرجع --bg ولا --card-bg هنا، وإلا كسرنا الوضع الليلي. */
-  const base = rand(146, 172);
-  const h1 = base;
-  const h2 = (base + rand(4, 14)) % 360;
-  const h3 = (base + rand(150, 195)) % 360;
-  const holo1 = `rgba(${rand(140,255)}, ${rand(0,140)}, ${rand(140,255)}, 0.12)`;
-  const holo2 = `rgba(${rand(0,200)}, ${rand(140,255)}, ${rand(120,255)}, 0.10)`;
+  /* هوية الكلية ثابتة: الأخضر للأزرار الأساسية والأحمر للتنبيه.
+     كانت الألوان تُولَّد عشوائياً فيخرج زر الشكاوى بنفسجياً في نصف الحالات.
+     العشوائية بقيت في الهالة الزخرفية فقط (--holo) لأنها لا تحمل معنى. */
   return {
-    '--primary-1': hsl(h1, 58, 40),
-    '--primary-2': hsl(h2, 62, 33),
-    '--accent-1': hsl(h3, 62, 50),
-    '--accent-2': hsl((h3+12)%360, 64, 44),
-    '--holo1': holo1,
-    '--holo2': holo2
+    '--holo1': `rgba(${rand(140,255)}, ${rand(0,140)}, ${rand(140,255)}, 0.12)`,
+    '--holo2': `rgba(${rand(0,200)}, ${rand(140,255)}, ${rand(120,255)}, 0.10)`
   };
 }
-function applyPalette(pal){ Object.keys(pal).forEach(k => document.documentElement.style.setProperty(k, pal[k])); }
+
+/* ألوان الهوية التي قد تكون نسخة قديمة كتبتها على <html> */
+const LEGACY_PALETTE_VARS = ['--primary-1','--primary-2','--accent-1','--accent-2'];
+
+function applyPalette(pal){
+  // نظّف أي لون هوية خزّنته نسخة سابقة حتى تعود ألوان :root الرسمية
+  LEGACY_PALETTE_VARS.forEach(k => document.documentElement.style.removeProperty(k));
+  Object.keys(pal).forEach(k => document.documentElement.style.setProperty(k, pal[k]));
+}
 
 /* ---------------------------
    Credit name: split on words + animations (avoid breaking Arabic letters)
