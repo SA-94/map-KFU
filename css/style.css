@@ -15,19 +15,17 @@
   --shadow-large: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
 }
 
-/* Dark theme variables */
+/* Dark theme variables
+   مهم: هنا نعرّف ألوان الأسطح والنصوص فقط.
+   ألوان الهوية (--primary-* و --accent-* و --holo*) تبقى في :root وحدها،
+   لأن اللوحة الديناميكية تكتبها على <html>، وأي إعادة تعريف لها هنا على
+   <body> تُلغيها تماماً فلا تتأثر القائمة الجانبية ولا الأزرار في الوضع الليلي. */
 body.dark{
   --bg: #0f172a;
   --text: #f1f5f9;
   --muted: #cbd5e1;
-  --primary-1: #10b981;
-  --primary-2: #059669;
-  --accent-1: #ef4444;
-  --accent-2: #dc2626;
   --card-bg: #1e293b;
   --backdrop: rgba(15,23,42,0.8);
-  --holo1: rgba(16,185,129,0.15);
-  --holo2: rgba(5,150,105,0.12);
 }
 
 /* reset */
@@ -108,6 +106,7 @@ body.sidebar-open{background:var(--bg)}
 
 .credit-meta{font-size:12px;color:var(--muted)}
 .credit-badge{margin-top:6px;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.85);font-weight:700;font-size:12px;color:#0b2b3b}
+body.dark .credit-badge{background:rgba(255,255,255,0.10);color:var(--text)}
 
 .credit-holo{position:absolute;inset:0;background:radial-gradient(circle at 10% 20%,var(--holo1),transparent 6%),radial-gradient(circle at 80% 80%,var(--holo2),transparent 12%),radial-gradient(circle at 60% 10%,rgba(236,72,153,0.08),transparent 8%);mix-blend-mode:screen;opacity:.95;pointer-events:none;filter:blur(8px) saturate(120%);animation:holoShift 6s linear infinite}
 @keyframes holoShift{0%{transform:translateX(-6%) translateY(0)}50%{transform:translateX(6%) translateY(-3%)}100%{transform:translateX(-6%) translateY(0)}}
