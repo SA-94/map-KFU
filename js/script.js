@@ -12,7 +12,6 @@ const enterMapBtn = document.getElementById('enterMapBtn');
 const welcomeCollegeSelect = document.getElementById('welcomeCollegeSelect');
 const welcomeAudienceSelect = document.getElementById('welcomeAudienceSelect');
 const welcomeSelectionHint = document.getElementById('welcomeSelectionHint');
-const floatingComplaintBtn = document.getElementById('floatingComplaintBtn');
 const menuToggle = document.getElementById('menuToggle');
 const sidebar = document.getElementById('sidebar');
 const closeSidebar = document.getElementById('closeSidebar');
@@ -70,11 +69,6 @@ const previewWrap = document.getElementById('previewWrap');
 const previewImg = document.getElementById('previewImg');
 const removePreview = document.getElementById('removePreview');
 
-const openAboutModal = document.getElementById('openAboutModal');
-const aboutModal = document.getElementById('aboutModal');
-const aboutBackdrop = document.getElementById('aboutBackdrop');
-const closeAbout = document.getElementById('closeAbout');
-const closeAboutBtn = document.getElementById('closeAboutBtn');
 
 const openDoctorModal = document.getElementById('openDoctorModal');
 const doctorModal = document.getElementById('doctorModal');
@@ -100,7 +94,7 @@ let pathsMap          = window.pathsMap || {}; // سيتم تحميله عند �
 let pathsLoading      = false; // علامة لمنع التحميل المتكرر
 let pathsLoaded       = false; // علامة لتتبع حالة التحميل
 /* غيّر هذا الرقم مع كل تحديث حتى يصل للطلاب فوراً بدل النسخة المخزّنة */
-const ASSET_VERSION   = '1.2.0';
+const ASSET_VERSION   = '1.3.1';
 let pathsScriptUrl    = 'data/agri-food/male/paths.rel.js';
 
 let datasetRegistry   = Array.isArray(window.datasetRegistry) ? window.datasetRegistry : [];
@@ -115,17 +109,21 @@ let IMG_W = 901, IMG_H = 988;
 
 /* ----- إعدادات الحركة ----- */
 /* الزمن ثابت بدل السرعة: كل مسار يُقطع في نفس المدة تقريباً مهما كان طوله */
-const ANIM_DURATION  = 2600;  // ms — زمن قطع المسار كاملاً
-const ANIM_MIN_SPEED = 70;    // px/s — حد أدنى حتى لا تبدو المسارات القصيرة متجمدة
-const ANIM_MAX_SPEED = 850;   // px/s — حد أعلى حتى لا تبدو المسارات الطويلة قفزة
-const ANIM_END_PAUSE = 900;   // ms — وقفة قبل إعادة تشغيل المسار
+/* سرعة السهم — لتبطئتها ارفع ANIM_DURATION وحده، وللتسريع أنقصه.
+   المدة تتناسب مع طول المسار حتى تبقى السرعة المرئية متقاربة. */
+const ANIM_DURATION     = 5200; // ms — زمن قطع مسار بطول ANIM_REF_LENGTH
+const ANIM_REF_LENGTH   = 400;  // px — الطول المرجعي المقابل للمدة أعلاه
+const ANIM_MIN_DURATION = 3000; // ms — أقصر مدة (للمسارات القصيرة جداً)
+const ANIM_MAX_DURATION = 9000; // ms — أطول مدة (للمسارات الطويلة جداً)
+const ANIM_END_PAUSE    = 1100; // ms — وقفة قبل إعادة تشغيل المسار
 
 let animId = null;
 let animTimer = null;         // مؤقّت وقفة النهاية (يجب إلغاؤه مع الحركة)
-let animSpeed = 200;          // px/s — يُحسب لكل مسار حسب طوله
+let animProgress = 0;         // 0..1 على طول المسار كاملاً
+let animMetrics = null;       // { cum, total } المسافات التراكمية
 let animPaused = false;       // حالة إيقاف مؤقت للحركة
 let previewObjectUrl = null;
-let seg = 0, t = 0, lastTs = 0;
+let lastTs = 0;
 let currentAnimPts = null;    // النقاط الحالية للحركة (يتم تحديثها عند التكبير)
 
 function applyImageSize(datasetItem){
@@ -386,19 +384,6 @@ function buildDatasetSelectors(){
   }
 }
 
-function refreshFloatingComplaintBtnVisibility(){
-  if(!floatingComplaintBtn) return;
-  const welcomeVisible = !!(welcomeScreen && !welcomeScreen.classList.contains('hidden') && welcomeScreen.style.display !== 'none');
-  const modalOpen = document.body.classList.contains('modal-open');
-  const sidebarOpen = document.body.classList.contains('sidebar-open');
-  /* يظهر على شاشة الخريطة فقط: لا في شاشة الترحيب، ولا فوق نافذة مفتوحة، ولا خلف القائمة */
-  if(welcomeVisible || modalOpen || sidebarOpen){
-    floatingComplaintBtn.classList.add('is-hidden');
-  } else {
-    floatingComplaintBtn.classList.remove('is-hidden');
-  }
-}
-
 /* ---------------------------
    قفل تمرير الصفحة خلف القائمة/النوافذ
    --------------------------- */
@@ -436,7 +421,6 @@ function setSidebarOpen(open){
   } else {
     stopCreditAuto();
   }
-  refreshFloatingComplaintBtnVisibility();
   refreshScrollLock();
 }
 function closeSidebarPanel(){
@@ -602,24 +586,12 @@ function resizeCanvasAndRedraw(){
     const absPts = originalPathData.map(p => toWrapperCoords(p));
     drawPath(absPts);
     
-    // تحديث النقاط الحالية للحركة وإعادة ضبط السرعة على المقاس الجديد
+    // النقاط الجديدة بالمقاس الجديد؛ التقدّم محفوظ فلا تعود الحركة للبداية
     currentAnimPts = absPts;
-    animSpeed = computeAnimSpeed(absPts);
-    
-    // تحديث موقع المثلث الحالي بدون إعادة تشغيل الحركة
-    if(animMarker && animMarker.style.display === 'block' && seg < absPts.length - 1){
-      const p0 = absPts[seg];
-      const p1 = absPts[seg + 1];
-      if(p0 && p1){
-        const dx = p1.x - p0.x;
-        const dy = p1.y - p0.y;
-        const cx = p0.x + dx * t;
-        const cy = p0.y + dy * t;
-        animMarker.style.left = `${cx}px`;
-        animMarker.style.top = `${cy}px`;
-        const ang = Math.atan2(dy, dx) * 180 / Math.PI + 90;
-        animMarker.style.transform = `translate(-50%,-50%) rotate(${ang}deg)`;
-      }
+    if(animMarker && animMarker.style.display === 'block'){
+      syncMarkerToProgress();
+    } else {
+      animMetrics = buildPathMetrics(absPts);
     }
   }
 }
@@ -654,7 +626,7 @@ function stopAnim(){
   animId = null;
   /* بدون إلغاء هذا المؤقّت تعود الحركة للحياة بعد وقفة النهاية رغم الإلغاء */
   if(animTimer){ clearTimeout(animTimer); animTimer = null; }
-  seg = 0; t = 0; lastTs = 0;
+  animProgress = 0; lastTs = 0;
 }
 
 function clearPath(){ 
@@ -669,95 +641,105 @@ function clearPath(){
   if(animMarker) animMarker.style.display = 'none';
 }
 
-// دالة التسهيل (ease-in-out)
+/* تسهيل لطيف: بداية ونهاية هادئتان، وسرعة ثابتة في المنتصف */
 function easeInOut(x) {
   return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
 }
 
-/* طول المسار بالبكسل المعروض */
-function pathLength(pts){
-  let total = 0;
-  for(let i = 1; i < pts.length; i++) total += Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y);
-  return total;
+/* المسافات التراكمية على طول المسار — أساس الحركة المنتظمة */
+function buildPathMetrics(pts){
+  const cum = [0];
+  for(let i = 1; i < pts.length; i++){
+    cum[i] = cum[i-1] + Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y);
+  }
+  return { cum, total: cum[cum.length - 1] };
 }
 
-/* سرعة تجعل كل مسار يُقطع في ANIM_DURATION تقريباً، مهما اختلف طوله أو حجم الشاشة */
-function computeAnimSpeed(pts){
-  if(!pts || pts.length < 2) return ANIM_MIN_SPEED;
-  const raw = pathLength(pts) / (ANIM_DURATION / 1000);
-  return Math.min(ANIM_MAX_SPEED, Math.max(ANIM_MIN_SPEED, raw));
+/* الموضع والزاوية عند مسافة d من بداية المسار */
+function pointAtDistance(pts, cum, d){
+  const last = pts.length - 1;
+  if(d <= 0)          return { x: pts[0].x, y: pts[0].y, angle: Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) };
+  if(d >= cum[last])  return { x: pts[last].x, y: pts[last].y, angle: Math.atan2(pts[last].y - pts[last-1].y, pts[last].x - pts[last-1].x) };
+  let i = 1;
+  while(i < last && cum[i] < d) i++;
+  const segLen = cum[i] - cum[i-1];
+  const r = segLen > 0 ? (d - cum[i-1]) / segLen : 0;
+  const p0 = pts[i-1], p1 = pts[i];
+  return {
+    x: p0.x + (p1.x - p0.x) * r,
+    y: p0.y + (p1.y - p0.y) * r,
+    angle: Math.atan2(p1.y - p0.y, p1.x - p0.x)
+  };
+}
+
+/* مدة قطع المسار: ثابتة تقريباً، مع حد أدنى وأعلى حتى لا تبدو
+   المسارات القصيرة ومضة ولا الطويلة زحفاً */
+function computeAnimDuration(total){
+  const byLength = (total / ANIM_REF_LENGTH) * ANIM_DURATION;
+  return Math.min(ANIM_MAX_DURATION, Math.max(ANIM_MIN_DURATION, byLength));
+}
+
+function placeMarkerAt(pos){
+  animMarker.style.left = `${pos.x}px`;
+  animMarker.style.top  = `${pos.y}px`;
+  animMarker.style.transform = `translate(-50%,-50%) rotate(${pos.angle * 180 / Math.PI + 90}deg)`;
+}
+
+/* يعيد رسم موضع السهم بعد تغيّر المقاس دون إعادة تشغيل الحركة */
+function syncMarkerToProgress(){
+  if(!currentAnimPts || currentAnimPts.length < 2) return;
+  animMetrics = buildPathMetrics(currentAnimPts);
+  placeMarkerAt(pointAtDistance(currentAnimPts, animMetrics.cum, easeInOut(animProgress) * animMetrics.total));
 }
 
 function startAnim(pts) {
   if(!pts || pts.length < 2) return;
   stopAnim();
   animPaused = false;
-  currentAnimPts = pts;  // حفظ النقاط الحالية
-  animSpeed = computeAnimSpeed(pts);
-  
-  // تأكد أن السهم ظاهر دائماً
+  currentAnimPts = pts;
+  animMetrics = buildPathMetrics(pts);
+  animProgress = 0;
+  if(animMetrics.total <= 0) return;
+
   animMarker.style.display = 'block';
   animMarker.style.opacity = '1';
-  const startPoint = pts[0];
-  animMarker.style.left = `${startPoint.x}px`;
-  animMarker.style.top = `${startPoint.y}px`;
-  
+  placeMarkerAt(pointAtDistance(pts, animMetrics.cum, 0));
+
   function restartAfterPause(){
-    seg = 0; t = 0; lastTs = 0;
+    animProgress = 0;
     animTimer = setTimeout(()=>{
       animTimer = null;
+      lastTs = 0;
       animId = requestAnimationFrame(animFrame);
     }, ANIM_END_PAUSE);
   }
 
   function animFrame(ts) {
-    // استخدام النقاط الحالية المحدثة (تتغير مع التكبير وتغيير حجم الشاشة)
     if(!currentAnimPts || currentAnimPts.length < 2){ animId = null; return; }
 
-    // التبويب مخفي: أبقِ الحلقة حية دون تقدّم حتى لا يقفز المؤشر عند العودة
+    // التبويب مخفي: أبقِ الحلقة حية دون تقدّم
     if(animPaused){ lastTs = ts; animId = requestAnimationFrame(animFrame); return; }
 
-    if (!lastTs) lastTs = ts;
-    // تقييد dt يحمي من قفزة كبيرة بعد أي توقف للإطارات
-    const dt = Math.min((ts - lastTs) / 1000, 0.05);
+    if(!lastTs) lastTs = ts;
+    const dt = Math.min((ts - lastTs) / 1000, 0.05); // تقييد القفزات بعد أي توقف
     lastTs = ts;
 
-    const p0 = currentAnimPts[seg];
-    const p1 = currentAnimPts[seg + 1];
-    if(!p0 || !p1) { restartAfterPause(); return; }
-    
-    const dx = p1.x - p0.x;
-    const dy = p1.y - p0.y;
-    const dist = Math.hypot(dx, dy);
+    /* التقدّم يُحسب على طول المسار كاملاً، والتسهيل يُطبَّق مرة واحدة عليه.
+       كان يُطبَّق على كل قطعة على حدة، فيتباطأ السهم حتى شبه التوقف عند
+       كل زاوية ثم يتسارع — وهو ما يبدو كتقطيع أو "لاق". */
+    animProgress += dt * 1000 / computeAnimDuration(animMetrics.total);
 
-    // تطبيق التسهيل
-    t += dist > 0 ? (animSpeed * dt) / dist : 1;
-    let tEase = easeInOut(Math.min(t, 1));
-
-    if (t >= 1) {
-      seg++;
-      t = 0;
-      if (seg >= currentAnimPts.length - 1) {
-        // وصل للنهاية - إعادة من البداية بعد وقفة
-        animMarker.style.left = `${p1.x}px`;
-        animMarker.style.top = `${p1.y}px`;
-        restartAfterPause();
-        return;
-      }
-      tEase = 0;
+    if(animProgress >= 1){
+      placeMarkerAt(pointAtDistance(currentAnimPts, animMetrics.cum, animMetrics.total));
+      restartAfterPause();
+      return;
     }
 
-    const cx = p0.x + dx * tEase;
-    const cy = p0.y + dy * tEase;
-    animMarker.style.left = `${cx}px`;
-    animMarker.style.top = `${cy}px`;
-
-    const ang = Math.atan2(dy, dx) * 180 / Math.PI + 90;
-    animMarker.style.transform = `translate(-50%,-50%) rotate(${ang}deg)`;
-
+    placeMarkerAt(pointAtDistance(currentAnimPts, animMetrics.cum, easeInOut(animProgress) * animMetrics.total));
     animId = requestAnimationFrame(animFrame);
   }
-  
+
+  lastTs = 0;
   animId = requestAnimationFrame(animFrame);
 }
 
@@ -1068,8 +1050,13 @@ if(mapContainer){
         e.touches[0].clientY - e.touches[1].clientY
       );
       currentScale = Math.min(Math.max(initialScale * (newDist / startDist), 1), 5);
-      currentTrans.x = initialTrans.x - ((currentScale - initialScale)/initialScale) * pinchCenter.x;
-      currentTrans.y = initialTrans.y - ((currentScale - initialScale)/initialScale) * pinchCenter.y;
+      /* لتبقى النقطة تحت الإصبعين ثابتة:
+         إزاحة_جديدة = المركز − (المركز − الإزاحة_القديمة) × النسبة
+         الصيغة السابقة كانت تهمل ضرب الإزاحة القديمة في النسبة، فتنزلق
+         الخريطة نحو الطرف كلما كُبِّرت بعد تحريك. */
+      const k = currentScale / initialScale;
+      currentTrans.x = pinchCenter.x - (pinchCenter.x - initialTrans.x) * k;
+      currentTrans.y = pinchCenter.y - (pinchCenter.y - initialTrans.y) * k;
       setTransform();
     }
   });
@@ -1081,9 +1068,12 @@ if(mapContainer){
     const my = e.clientY - rect.top;
     const delta = (e.deltaY<0)? 1.1 : 0.9;
     const newScale = Math.min(Math.max(currentScale * delta, 1), 5);
-    
-    currentTrans.x -= (((newScale/currentScale)-1) * mx);
-    currentTrans.y -= (((newScale/currentScale)-1) * my);
+    if(newScale === currentScale) return;
+
+    // نفس التصحيح: تُضرب الإزاحة القديمة في النسبة حتى يثبت ما تحت المؤشر
+    const k = newScale / currentScale;
+    currentTrans.x = mx - (mx - currentTrans.x) * k;
+    currentTrans.y = my - (my - currentTrans.y) * k;
     currentScale = newScale;
     setTransform();
   });
@@ -1202,7 +1192,6 @@ function openModal(modalEl, opts = {}){
     enableModalTouchScroll(inner);
     setTimeout(()=>{ try { const first = inner.querySelector('input,textarea,select,button'); if(first) first.focus(); } catch(e){} }, 60);
   }
-  refreshFloatingComplaintBtnVisibility();
   refreshScrollLock();
 }
 function closeModalGeneric(modalEl){
@@ -1216,7 +1205,6 @@ function closeModalGeneric(modalEl){
   setTimeout(()=>{
     const openModalExists = document.querySelector('.modal[aria-hidden="false"]');
     if(!openModalExists){ document.body.classList.remove('modal-open'); try { if (mapContainer) mapContainer.style.pointerEvents = ''; if (mapWrapper) mapWrapper.style.pointerEvents = ''; } catch(e){} }
-    refreshFloatingComplaintBtnVisibility();
     refreshScrollLock();
   }, 80);
   const card = modalEl.querySelector('.modal-card');
@@ -1427,6 +1415,10 @@ const homeText = `🗺️ وصف الخدمة:
 
 عرض مسار مرئي خطوة بخطوة، وتقليل زمن الوصول
 
+👥 من نحن:
+مبادرة طلابية من كلية العلوم الزراعية والأغذية،
+نرحّب بملاحظاتكم واقتراحاتكم لتحسين التجربة.
+
 🎯 المزايا الأساسية:
 • تحديد موقع القاعة بدقة.
 • مسار مرئي واضح وسلس.
@@ -1522,7 +1514,6 @@ document.addEventListener('click', e=>{
 window.addEventListener('load', ()=>{
   buildDatasetSelectors(); 
   showTooltip(); 
-  refreshFloatingComplaintBtnVisibility();
   
   setMapToFloor(1);
   setTransform();
@@ -1556,19 +1547,10 @@ window.addEventListener('load', ()=>{
     closeSidebarPanel();
     openModal(complaintModal); if(complainUni) complainUni.focus();
   });
-  if(floatingComplaintBtn) floatingComplaintBtn.addEventListener('click', ()=>{
-    openModal(complaintModal);
-    if(complainUni) complainUni.focus();
-  });
   if(complaintBackdrop) complaintBackdrop.addEventListener('click', ()=>{ closeModalGeneric(complaintModal); });
   if(closeComplaint) closeComplaint.addEventListener('click', ()=>{ closeModalGeneric(complaintModal); });
   if(closeComplaintBtn) closeComplaintBtn.addEventListener('click', ()=>{ closeModalGeneric(complaintModal); });
   if(sendComplaintBtn) sendComplaintBtn.addEventListener('click', sendComplaint);
-
-  if(openAboutModal) openAboutModal.addEventListener('click', ()=>{ openModal(aboutModal); });
-  if(aboutBackdrop) aboutBackdrop.addEventListener('click', ()=>{ closeModalGeneric(aboutModal); });
-  if(closeAbout) closeAbout.addEventListener('click', ()=>{ closeModalGeneric(aboutModal); });
-  if(closeAboutBtn) closeAboutBtn.addEventListener('click', ()=>{ closeModalGeneric(aboutModal); });
 
   if(openDoctorModal) openDoctorModal.addEventListener('click', ()=>{ 
     closeSidebarPanel();
@@ -1610,7 +1592,6 @@ window.addEventListener('load', ()=>{
         welcomeScreen.classList.add('hidden');
         setTimeout(()=>{ welcomeScreen.style.display = 'none'; }, 500);
       }
-      refreshFloatingComplaintBtnVisibility();
     });
   }
 });

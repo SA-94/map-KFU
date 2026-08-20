@@ -239,33 +239,10 @@ body.dark .credit-badge{background:rgba(16,185,129,0.18);border-color:rgba(16,18
 .status{margin-top:10px;font-size:15px;color:var(--muted)}
 .note{font-size:12px;color:var(--muted);margin-top:8px}
 
-/* floating complaint button */
-.floating-complaint-btn{
-  position:fixed;
-  right:20px;
-  bottom:88px;
-  width:54px;
-  height:54px;
-  border:none;
-  border-radius:50%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:21px;
-  color:#fff;
-  cursor:pointer;
-  z-index:1500;
-  background:linear-gradient(135deg,var(--primary-1),var(--primary-2));
-  box-shadow:0 10px 22px rgba(16,185,129,0.35), inset 0 1px 0 rgba(255,255,255,0.28);
-  transition:transform .2s ease, box-shadow .2s ease, opacity .2s ease, right .2s ease;
-}
-.floating-complaint-btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 14px 26px rgba(16,185,129,0.45), inset 0 1px 0 rgba(255,255,255,0.35)}
-.floating-complaint-btn:active{transform:translateY(0) scale(.98)}
-.floating-complaint-btn.is-hidden{opacity:0;pointer-events:none;transform:translateY(8px) scale(.95)}
 
 /* footer + spacing */
-.content{flex:1;padding:18px;flex-direction:column;align-items:center;gap:12px;display:flex;overflow-y:auto;overflow-x:hidden;padding-bottom:60px;-webkit-overflow-scrolling:touch}
-.footer{background:linear-gradient(135deg,var(--primary-1),var(--primary-2),var(--primary-1));background-size:200% 200%;animation:gradientShift 6s ease infinite;color:#fff;text-align:center;padding:8px;font-size:11px;position:fixed;bottom:0;width:100%;box-shadow:0 -4px 12px rgba(16,185,129,0.3);z-index:100;backdrop-filter:blur(8px)}
+.content{flex:1;padding:18px;flex-direction:column;align-items:center;gap:12px;display:flex;overflow-y:auto;overflow-x:hidden;padding-bottom:18px;-webkit-overflow-scrolling:touch}
+.footer{background:linear-gradient(135deg,var(--primary-1),var(--primary-2),var(--primary-1));background-size:200% 200%;animation:gradientShift 6s ease infinite;color:#fff;text-align:center;padding:8px;font-size:11px;width:100%;box-shadow:0 -4px 12px rgba(16,185,129,0.3);flex-shrink:0;line-height:1.6}
 
 /* responsive */
 @media (max-width:900px){
@@ -288,7 +265,6 @@ body.dark .credit-badge{background:rgba(16,185,129,0.18);border-color:rgba(16,18
   #animMarker{border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid #ef4444}
   .map-container{width:min(99%, calc((100vh - 170px) * 901 / 988));margin:8px auto;border-radius:12px}
   .content{padding:8px}
-  .floating-complaint-btn{right:12px;bottom:82px;width:50px;height:50px;font-size:19px}
 }
 @media (max-width:400px){
   .sidebar{width:98vw;padding:12px}

@@ -22,8 +22,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1.2.0">
-  <link rel="stylesheet" href="css/sidebar-lux.css?v=1.2.0">
+  <link rel="stylesheet" href="css/style.css?v=1.3.1">
+  <link rel="stylesheet" href="css/sidebar-lux.css?v=1.3.1">
 </head>
 <body>
   <!-- Welcome Screen -->
@@ -77,9 +77,6 @@
       <button id="openDeanModal" class="btn-primary large">عن العميد</button>
       <button id="openComplaintModal" class="btn-primary large accent">✉️ الشكاوى والاقتراحات</button>
 
-      <div class="about-frame" style="margin-top:8px;">
-        <button id="openAboutModal" class="btn-about">من نحن</button>
-      </div>
     </div>
 
     <div class="credit-card" aria-hidden="false" style="margin-top:12px;">
@@ -120,10 +117,6 @@
       <p id="errorMessage" class="error-message" role="status" aria-live="polite" style="display:none;">يرجى إدخال رقم قاعة صحيح.</p>
     </aside>
   </main>
-
-  <button id="floatingComplaintBtn" class="floating-complaint-btn is-hidden" aria-label="فتح الشكاوى" title="الشكاوى والاقتراحات">
-    ✉️
-  </button>
 
   <footer class="footer">الحقوق محفوظة للطالب فهد القحطاني © 2025 — بإشراف الأستاذ منصور البحري</footer>
 
@@ -224,21 +217,6 @@
     </div>
   </div>
 
-  <!-- About Modal (واحد فقط, مُصلح النص) -->
-  <div id="aboutModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="aboutTitle" aria-modal="true">
-    <div class="modal-backdrop" id="aboutBackdrop"></div>
-    <div class="modal-card fullscreen" role="document" aria-labelledby="aboutTitle">
-      <button id="closeAbout" class="modal-close" data-close aria-label="إغلاق">×</button>
-      <h3 id="aboutTitle">من نحن</h3>
-      <div class="typing-output about-text">
-        <p><strong>فريق خريطة القاعات</strong> — مبادرة تهدف لتسهيل الوصول إلى القاعات داخل كلية العلوم الزراعية والأغذية.</p>
-        <p><strong>بإشراف:</strong> الأستاذ منصور البحري.</p>
-        <p>نرحب بالمساهمات والاقتراحات لتحسين التجربة.</p>
-      </div>
-      <div style="margin-top:12px;text-align:left;"><button id="closeAboutBtn" class="btn-secondary" data-close>إغلاق</button></div>
-    </div>
-  </div>
-
   <!-- Doctor Modal - مكاتب الدكاترة -->
   <div id="doctorModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="doctorTitle" aria-modal="true">
     <div class="modal-backdrop" id="doctorBackdrop"></div>
@@ -258,11 +236,11 @@
   </div>
 
   <!-- external data + scripts (مضمّنة مرة واحدة) -->
-  <script src="js/dataset.registry.js?v=1.2.0" defer></script>
-  <script src="data/agri-food/male/rooms.js?v=1.2.0" defer></script>
+  <script src="js/dataset.registry.js?v=1.3.1" defer></script>
+  <script src="data/agri-food/male/rooms.js?v=1.3.1" defer></script>
   <!-- paths.rel.js سيتم تحميله عند الطلب (lazy-load) لتحسين الأداء -->
-  <script src="data/agri-food/male/doctors.js?v=1.2.0" defer></script>
-  <script src="js/script.js?v=1.2.0" defer></script>
+  <script src="data/agri-food/male/doctors.js?v=1.3.1" defer></script>
+  <script src="js/script.js?v=1.3.1" defer></script>
 
   <!-- عامل الخدمة: يجعل الخريطة تعمل بدون إنترنت داخل المبنى -->
   <script>
