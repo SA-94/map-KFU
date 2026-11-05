@@ -95,7 +95,7 @@ let pathsMap          = window.pathsMap || {}; // سيتم تحميله عند �
 let pathsLoading      = false; // علامة لمنع التحميل المتكرر
 let pathsLoaded       = false; // علامة لتتبع حالة التحميل
 /* غيّر هذا الرقم مع كل تحديث حتى يصل للطلاب فوراً بدل النسخة المخزّنة */
-const ASSET_VERSION   = '1.4.0';
+const ASSET_VERSION   = '1.4.1';
 let pathsScriptUrl    = 'data/agri-food/male/paths.rel.js';
 
 let datasetRegistry   = Array.isArray(window.datasetRegistry) ? window.datasetRegistry : [];
@@ -142,7 +142,7 @@ function getMapSrcForFloor(floor){
 
 function setMapToFloor(floor){
   currentMapFloor = floor;
-  if(mapImage) mapImage.src = getMapSrcForFloor(floor);
+  if(mapImage) mapImage.src = withVersion(getMapSrcForFloor(floor));   // رقم النسخة: لا تبقى خريطة قديمة في ذاكرة الجوال
 }
 
 function resetMapView(){

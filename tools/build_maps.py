@@ -634,8 +634,10 @@ def build(floor, rooms):
     DEBUG[floor] = dict(gimg=gimg, X=X, Y=Y, grid=grid, doors=doors_final, CORR=CORR, OUT=OUT)
     REPORT[str(floor)] = dict(doors=len(doors_final), unplaced=unplaced)
 
-    # أرقام القاعات
-    add(labels(rooms, floor))
+    # أرقام القاعات: مخفية في الخريطة المنشورة (البحث يدل على القاعة بالدبوس)،
+    # وتبقى ظاهرة في خلفية المحرر (BASE) للضبط اليدوي
+    if SHOW_ROOM_NUMBERS:
+        add(labels(rooms, floor))
 
     # الرموز
     counts = {}
@@ -1361,6 +1363,7 @@ def fix_paths(rooms, path_file=None):
     return dict(changed=len(changed), skipped=skipped)
 
 
+SHOW_ROOM_NUMBERS = False                 # True = تُطبع أرقام القاعات على الخريطة المنشورة
 NET_DOOR = {'المسجد': (108.0, 757.4)}       # المسجد: الباب الغربي المقابل لأيقونته
 NET_TARGET = {'المسرح': (640.0, 710.0)}   # المسرح: القاعة الكبيرة تحت أيقونته (الأيقونة في السيب)
 NET_START = {1: (251.45, 893.35),   # مدخل المبنى (الدور الأول)
