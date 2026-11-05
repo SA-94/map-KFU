@@ -1,9 +1,10 @@
 /* رقم العميد (ضع الرقم هنا بصيغة محلية أو دولية) */
 const DEAN_PHONE = '0135895711';
 
-/* Telegram Bot Configuration */
-const TELEGRAM_BOT_TOKEN = '8255886307:AAExiaoy_30ClKvZnkoG9LTRetwYhOED3mg';
-const TELEGRAM_CHAT_ID = '7821474319';
+/* رابط وسيط الشكاوى (worker/complaint-worker.js بعد نشره على Cloudflare).
+   توكن البوت لا يوضع هنا أبداً — هذا الملف يقرؤه أي زائر.
+   مثال: 'https://kfu-complaints.<حسابك>.workers.dev' */
+const COMPLAINT_ENDPOINT = '';
 
 /* ----- DOM ----- */
 const body = document.body;
@@ -94,7 +95,7 @@ let pathsMap          = window.pathsMap || {}; // سيتم تحميله عند �
 let pathsLoading      = false; // علامة لمنع التحميل المتكرر
 let pathsLoaded       = false; // علامة لتتبع حالة التحميل
 /* غيّر هذا الرقم مع كل تحديث حتى يصل للطلاب فوراً بدل النسخة المخزّنة */
-const ASSET_VERSION   = '1.3.1';
+const ASSET_VERSION   = '1.4.0';
 let pathsScriptUrl    = 'data/agri-food/male/paths.rel.js';
 
 let datasetRegistry   = Array.isArray(window.datasetRegistry) ? window.datasetRegistry : [];
@@ -136,7 +137,7 @@ function getMapSrcForFloor(floor){
   if(currentDataset && currentDataset.maps){
     return floor === 2 ? currentDataset.maps.floor2 : currentDataset.maps.floor1;
   }
-  return floor === 2 ? 'assets/maps/map-2.png' : 'assets/maps/map-1.png';
+  return floor === 2 ? 'assets/maps/floor-2.svg' : 'assets/maps/floor-1.svg';
 }
 
 function setMapToFloor(floor){
@@ -145,6 +146,7 @@ function setMapToFloor(floor){
 }
 
 function resetMapView(){
+  removeStairsQuestion();
   setMapToFloor(1);
   if(pin) pin.style.display = 'none';
   if(animMarker) animMarker.style.display = 'none';
@@ -166,15 +168,21 @@ function updateDatasetStatus(msg, isError = false){
 function updateWelcomeHint(msg, isError = true){
   if(!welcomeSelectionHint) return;
   welcomeSelectionHint.textContent = msg || '';
-  welcomeSelectionHint.style.color = isError ? '#ef4444' : '#10b981';
+  welcomeSelectionHint.style.color = isError ? '#b4452f' : '#2f6b52';
 }
 
-function loadScriptFile(url, forceReload = false){
+/* يضيف رقم النسخة للرابط: الملف يُحمَّل من جديد عند كل تحديث فقط،
+   لا في كل زيارة (كان يُضاف Date.now فيُنزَّل الملف مرتين كل مرة). */
+function withVersion(url){
+  return `${url}${url.includes('?') ? '&' : '?'}v=${ASSET_VERSION}`;
+}
+
+function loadScriptFile(url){
   return new Promise((resolve, reject) => {
     if(!url){ reject(new Error('مسار الملف غير موجود')); return; }
     const script = document.createElement('script');
     script.async = true;
-    script.src = forceReload ? `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}` : url;
+    script.src = withVersion(url);
     script.onload = () => resolve(true);
     script.onerror = () => reject(new Error(`تعذر تحميل الملف: ${url}`));
     document.body.appendChild(script);
@@ -211,8 +219,8 @@ async function applyDataset(datasetItem, options = { resetView: true }){
   try{
     updateDatasetStatus(`جاري تحميل: ${datasetItem.collegeName} - ${datasetItem.audienceName}...`);
 
-    await loadScriptFile(datasetItem.files.rooms, true);
-    await loadScriptFile(datasetItem.files.doctors, true);
+    await loadScriptFile(datasetItem.files.rooms);
+    await loadScriptFile(datasetItem.files.doctors);
 
     roomCoordinates = window.roomCoordinates || {};
     doctorsData = window.doctorsData || [];
@@ -430,16 +438,22 @@ function closeSidebarPanel(){
 /* ---------------------------
    Theme toggle (night/day)
    --------------------------- */
+/* الأيقونة (قمر/شمس) تتبدّل بالـCSS حسب body.dark؛ هنا نحدّث لون شريط الحالة فقط */
+const themeColorMeta = document.getElementById('themeColorMeta');
+function syncThemeChrome(isDark){
+  if(themeColorMeta) themeColorMeta.setAttribute('content', isDark ? '#0f1513' : '#f3eee3');
+  if(themeBtn) themeBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+}
 function applyInitialTheme(){
   // ابدأ دائماً بالوضع النهاري عند كل فتح للتطبيق
   document.body.classList.remove('dark');
-  if(themeBtn) themeBtn.textContent = '🌙';
+  syncThemeChrome(false);
 }
 if(themeBtn){
   applyInitialTheme();
   themeBtn.addEventListener('click', ()=>{
     const isDark = document.body.classList.toggle('dark');
-    themeBtn.textContent = isDark ? '☀️' : '🌙';
+    syncThemeChrome(isDark);
   });
 } else {
   console.warn('theme-toggle button not found (id="theme-toggle")');
@@ -580,7 +594,9 @@ function resizeCanvasAndRedraw(){
   const ctx = pathCanvas.getContext('2d');
   ctx.setTransform(DPR,0,0,DPR,0,0);
   ctx.clearRect(0, 0, W, H);
-  
+
+  if(pin && pin.style.display === 'block') placePin();
+
   // إعادة رسم المسار والأنيميشن من البيانات الأصلية
   if(originalPathData && originalPathData.length > 0) {
     const absPts = originalPathData.map(p => toWrapperCoords(p));
@@ -743,8 +759,24 @@ function startAnim(pts) {
   animId = requestAnimationFrame(animFrame);
 }
 
+/* الدبوس يُحفظ بإحداثيات الصورة الأصلية حتى يُعاد وضعه عند تدوير الجوال
+   أو تغيير حجم النافذة (كان يُحفظ بالبكسل فيبقى في مكانه القديم) */
+let pinImgPos = null;
+function placePin(){
+  if(!pin || !pinImgPos) return;
+  const rc = toWrapperCoords(pinImgPos);
+  pin.style.left = `${rc.x}px`;
+  pin.style.top  = `${rc.y}px`;
+}
+function showPinAt(imgPos){
+  if(!pin || !imgPos) return;
+  pinImgPos = { x: imgPos.x, y: imgPos.y };
+  placePin();
+  pin.style.display = 'block';
+}
+
 /* coords helper */
-function toWrapperCoords(p){ 
+function toWrapperCoords(p){
   const W = mapContainer.clientWidth;
   const H = mapContainer.clientHeight;
   // تحويل من إحداثيات الصورة الأصلية (901×988) إلى حجم الحاوي
@@ -783,18 +815,15 @@ function createStairsQuestion(){
         clearPath();
       }
       
-      const rc = toWrapperCoords(roomCoordinates[rn]); 
-      pin.style.left=`${rc.x}px`; 
-      pin.style.top=`${rc.y}px`; 
-      pin.style.display='block';
+      showPinAt(roomCoordinates[rn]);
       resizeCanvasAndRedraw();
     }
     removeStairsQuestion();
   };
+  /* "لا" = ما زلت في الطريق: نُبقي مسار الدرج والسؤال ظاهرين.
+     كان يمسح المسار فيضيع الطريق على من لم يصل بعد. */
   document.getElementById('stairsNo').onclick = ()=>{
-    removeStairsQuestion(); 
-    clearPath();
-    showError('تابع المسار حتى الدرج، ثم اضغط "ابحث" مرة أخرى واختر "نعم".');
+    showError('تابع المسار حتى الدرج، ثم اضغط "نعم".');
   };
 }
 function removeStairsQuestion(){ const el = document.getElementById('stairsQuestion'); if(el) el.remove(); }
@@ -860,7 +889,7 @@ function loadPathsIfNeeded(callback) {
   // ابدأ التحميل
   pathsLoading = true;
   const script = document.createElement('script');
-  script.src = `${pathsScriptUrl}${pathsScriptUrl.includes('?') ? '&' : '?'}v=${ASSET_VERSION}`;
+  script.src = withVersion(pathsScriptUrl);
   script.onload = () => {
     pathsMap = window.pathsMap || {};
     pathsLoaded = true;
@@ -899,8 +928,6 @@ function locateRoom(){
   // تحميل المسارات عند الطلب (lazy-load) قبل الاستخدام
   loadPathsIfNeeded(() => {
     const room = roomCoordinates[rn];
-    const containerW = mapContainer.clientWidth;
-    const containerH = mapContainer.clientHeight;
 
     // إذا كانت القاعة في الدور الثاني (floor: 2)
     if(room && room.floor === 2){
@@ -919,11 +946,8 @@ function locateRoom(){
           clearPath();
         }
         
-        const rc = toWrapperCoords(roomCoordinates[rn]); 
-        pin.style.left = `${rc.x}px`; 
-        pin.style.top = `${rc.y}px`; 
-        pin.style.display='block';
-        resizeCanvasAndRedraw(); 
+        showPinAt(roomCoordinates[rn]);
+        resizeCanvasAndRedraw();
         return;
       }
       
@@ -938,12 +962,9 @@ function locateRoom(){
         startAnim(absPts); 
         pin.style.display='none'; 
       } else if(roomCoordinates['درج']){ 
-        clearPath(); 
-        const rc = toWrapperCoords(roomCoordinates['درج']); 
-        pin.style.left=`${rc.x}px`; 
-        pin.style.top=`${rc.y}px`; 
-        pin.style.display='block'; 
-      } else { 
+        clearPath();
+        showPinAt(roomCoordinates['درج']);
+      } else {
         clearPath(); 
         if(pin) pin.style.display='none'; 
       }
@@ -956,18 +977,8 @@ function locateRoom(){
     }
 
     // قاعة في الدور الأول
-    const { x, y, floor } = roomCoordinates[rn];
-  setMapToFloor(floor===1 ? 1 : 2);
-    
-    // تحويل الإحداثيات من الصورة الأصلية إلى حجم الحاوي
-    const xAbs = (x / IMG_W) * containerW;
-    const yAbs = (y / IMG_H) * containerH;
-    
-    if(pin){ 
-      pin.style.left = `${xAbs}px`; 
-      pin.style.top = `${yAbs}px`; 
-      pin.style.display='block'; 
-    }
+    setMapToFloor(roomCoordinates[rn].floor === 1 ? 1 : 2);
+    showPinAt(roomCoordinates[rn]);
 
     if(pathsMap[rn]){ 
       originalPathData = pathsMap[rn];  // حفظ البيانات الأصلية
@@ -1005,11 +1016,8 @@ function setTransform(){
     mapWrapper.style.transform = `translate(${currentTrans.x}px, ${currentTrans.y}px) scale(${currentScale})`;
     mapWrapper.style.transformOrigin = '0 0';
   }
-  
-  // إعادة رسم المسار بعد أي تغيير في التكبير أو الحركة
-  if(lastDrawnPts && lastDrawnPts.length > 0){
-    resizeCanvasAndRedraw();
-  }
+  /* لا حاجة لإعادة رسم المسار هنا: الكانفس داخل mapWrapper فيتحرك ويتكبّر
+     معه تلقائياً. إعادة الرسم مع كل حركة إصبع كانت تثقل السحب على الجوال. */
 }
 
 if(mapContainer){
@@ -1033,8 +1041,25 @@ if(mapContainer){
       };
       initialTrans = { ...currentTrans };
     }
+  }, { passive: true });
+
+  /* عند رفع إصبع من التكبير يبقى إصبع واحد: نبدأ السحب منه مباشرة.
+     بدونه تتجمد الخريطة حتى يُرفع الإصبع الثاني ويوضع من جديد. */
+  mapContainer.addEventListener('touchend', e=>{
+    if(e.touches.length === 1){
+      touchStart = [{ x: e.touches[0].clientX, y: e.touches[0].clientY }];
+      initialTrans = { ...currentTrans };
+    } else if(e.touches.length === 0){
+      touchStart = [];
+    }
+  }, { passive: true });
+
+  /* سفاري الآيفون يرسل إيماءات تكبير خاصة به تكبّر الصفحة كلها فوق
+     تكبير الخريطة. الخريطة تتولى التكبير بنفسها. */
+  ['gesturestart','gesturechange','gestureend'].forEach(type=>{
+    mapContainer.addEventListener(type, e=>e.preventDefault(), { passive: false });
   });
-  
+
   mapContainer.addEventListener('touchmove', e=>{
     if(document.body.classList.contains('modal-open')) return;
     e.preventDefault();
@@ -1059,7 +1084,7 @@ if(mapContainer){
       currentTrans.y = pinchCenter.y - (pinchCenter.y - initialTrans.y) * k;
       setTransform();
     }
-  });
+  }, { passive: false });
   
   mapContainer.addEventListener('wheel', e=>{
     e.preventDefault();
@@ -1328,57 +1353,36 @@ async function sendComplaint(){
     return;
   }
 
-  const header = `✉️ تواصل معنا / رفع اقتراح`;
-  const bodyLines = [];
-  bodyLines.push(`👤 الاسم: ${name}`);
-  bodyLines.push(`🎓 الرقم الجامعي: ${uni}`);
-  bodyLines.push(`📱 الجوال: ${phone}`);
-  if(msg) bodyLines.push(`\n💬 المحتوى:\n${msg}`);
-  bodyLines.push(`\n🗓️ التاريخ: ${new Date().toLocaleString('ar-SA')}`);
-  bodyLines.push(`📍 المرسل عبر: خريطة القاعات - كلية العلوم الزراعية`);
-  const fullText = `${header}\n${'─'.repeat(40)}\n${bodyLines.join('\n')}`;
+  if(file && file.size > 5 * 1024 * 1024){
+    if(complaintStatus){ complaintStatus.style.color = '#dc2626'; complaintStatus.textContent = '❌ الصورة أكبر من 5 ميجابايت.'; }
+    sendComplaintBtn.disabled = false;
+    sendComplaintBtn.textContent = prevLabel;
+    return;
+  }
 
   try {
-    if(file) {
-      // إرسال الصورة مع النص
-      const formData = new FormData();
-      formData.append('chat_id', TELEGRAM_CHAT_ID);
-      formData.append('photo', file);
-      formData.append('caption', fullText);
-      
-      const photoUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`;
-      const photoResponse = await fetch(photoUrl, {
-        method: 'POST',
-        body: formData
-      });
-      
-      const photoData = await photoResponse.json();
-      console.log('Telegram Photo Response:', photoData);
-      
-      if(!photoData.ok) {
-        throw new Error(photoData.description || 'فشل إرسال الصورة');
-      }
-      
-    } else {
-      // إرسال النص فقط
-      const textUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-      const textResponse = await fetch(textUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: TELEGRAM_CHAT_ID,
-          text: fullText
-        })
-      });
-      
-      const textData = await textResponse.json();
-      console.log('Telegram Text Response:', textData);
-      
-      if(!textData.ok) {
-        throw new Error(textData.description || 'فشل إرسال الرسالة');
-      }
+    if(!COMPLAINT_ENDPOINT){
+      throw new Error('خدمة الشكاوى متوقفة مؤقتاً، جرّب لاحقاً.');
     }
-    
+    // الإرسال يمر عبر الوسيط؛ هو من يملك توكن البوت ويتحقق من البيانات مرة أخرى
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('uni', uni);
+    formData.append('phone', phone);
+    formData.append('msg', msg);
+    if(file) formData.append('photo', file);
+
+    let data = {};
+    try {
+      const res = await fetch(COMPLAINT_ENDPOINT, { method: 'POST', body: formData });
+      data = await res.json().catch(() => ({}));
+    } catch(netErr){
+      throw new Error('تعذر الاتصال. تأكد من الإنترنت وحاول مرة أخرى.');
+    }
+    if(!data.ok){
+      throw new Error(data.error || 'حدث خطأ في الإرسال');
+    }
+
     if(complaintStatus){ 
       complaintStatus.style.color='#10b981'; 
       complaintStatus.textContent = '✅ تم إرسال رسالتك بنجاح! سيتم التواصل معك قريباً.'; 
@@ -1433,13 +1437,18 @@ const homeText = `🗺️ وصف الخدمة:
 
 الحقوق محفوظة © 2025`;
 
+/* كل فتح للنافذة يأخذ رقماً جديداً، والكتابة القديمة تتوقف إذا تغيّر الرقم.
+   بدونه: فتح/إغلاق/فتح بسرعة يشغّل حلقتين تكتبان فوق بعض. */
+let homeTypingRun = 0;
 async function typeHomeText(){
   const homeTypingEl = homeTyping;
   if(!homeTypingEl) return;
+  const run = ++homeTypingRun;
   homeTypingEl.textContent = '';
   homeTypingEl.classList.add('typing-active');
   const ms = 25;
   for(let i=0;i<homeText.length;i++){
+    if(run !== homeTypingRun) return;
     homeTypingEl.textContent += homeText[i];
     await new Promise(r=>setTimeout(r, ms));
   }
@@ -1608,13 +1617,19 @@ if(roomInput){
 /* إعادة الرسم فقط: استدعاء locateRoom هنا كان يعيد الحركة للبداية
    مع كل ظهور/اختفاء لشريط عنوان المتصفح على الجوال */
 let resizeTimer = null;
-window.addEventListener('resize', ()=>{ 
+function onMapResize(){
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(()=>{
     setTransform();
-    resizeCanvasAndRedraw(); 
+    resizeCanvasAndRedraw();
   }, 120);
-});
+}
+/* نراقب حجم الخريطة نفسها لا النافذة: حجمها يتغير أيضاً عند ظهور/اختفاء
+   شريط التمرير دون أي حدث resize، فيبقى الدبوس والمسار بمقاس قديم */
+if(window.ResizeObserver && mapContainer){
+  new ResizeObserver(onMapResize).observe(mapContainer);
+}
+window.addEventListener('resize', onMapResize);
 
 // إيقاف/استئناف الحركة عند تبديل التبويب (Page Visibility API)
 document.addEventListener('visibilitychange', () => {

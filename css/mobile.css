@@ -1,0 +1,76 @@
+/* mobile.css — طبقة الجوال (الآيفون خصوصاً). تُحمَّل بعد كل ملفات التنسيق.
+   هذه قواعد المنصّة فقط، لا الشكل: كل سطر يمنع سلوكاً يجعل الموقع
+   "يبدو كموقع" على الجوال. لا تُدمج في style.css حتى لا تضيع مع أي تغيير تصميم. */
+
+/* الوميض الرمادي عند لمس الأزرار في سفاري، وتكبير الخط تلقائياً بالعرض */
+html{
+  -webkit-tap-highlight-color:transparent;
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+}
+
+/* الآيفون يكبّر الصفحة كلها عند الكتابة في حقل خطه أقل من 16px
+   ولا يرجعها بعد الخروج. 16px هو الحد الأدنى (لا نمنع التكبير أبداً). */
+input, textarea, select{ font-size:16px !important; }
+
+/* الأزرار: استجابة فورية بدل انتظار 300ms للنقر المزدوج،
+   ولا تحديد للنص ولا قائمة "نسخ" عند الضغط المطوّل */
+button, a, [role="button"], .doctor-item, label{
+  touch-action:manipulation;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+
+/* الخريطة تملك كل الإيماءات (سحب + تكبير بإصبعين). بدون هذا يكبّر
+   سفاري الصفحة كلها مع الخريطة، والنقر المزدوج يقفز بالصفحة. */
+.map-container, .map-wrapper, .map-container.zoomed{
+  touch-action:none;
+  overflow:hidden;
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+/* القوائم والنوافذ تمرر محتواها فقط ولا تسحب الصفحة خلفها */
+.sidebar, .modal-inner, .doctor-list{ overscroll-behavior:contain; }
+
+/* الآيفون بلا خاصية hover: أول لمسة تُبقي حالة hover عالقة على الزر
+   (يبقى مرفوعاً/مكبّراً). نلغي الحركة في الأجهزة اللمسية ونعطي
+   ضغطة فورية بدلها. */
+@media (hover:none){
+  .btn-primary:hover, .btn-primary.large:hover, .btn-secondary:hover,
+  .btn-about:hover, .btn-copy:hover, .btn-enter:hover, .close-btn:hover,
+  .doctor-item:hover, .side-actions .btn-primary.large:hover, .side-actions #waDeanBtn:hover{
+    transform:none;
+  }
+  .btn-primary:active, .btn-secondary:active, .btn-enter:active, .btn-copy:active,
+  .doctor-item:active, .close-btn:active, .side-actions .btn-primary.large:active{
+    transform:scale(.97);
+    transition:transform 100ms ease-out;
+  }
+}
+
+/* الشاشات ذات النتوء (الآيفون): الصفحة تمتد تحت النتوء (viewport-fit=cover)
+   فنبعد المحتوى نفسه عنه وعن شريط الرجوع للرئيسية */
+@supports (padding: max(0px)){
+  .topbar{
+    padding-top:max(8px, env(safe-area-inset-top));
+    padding-left:max(var(--pad-x, 16px), env(safe-area-inset-left));
+    padding-right:max(var(--pad-x, 16px), env(safe-area-inset-right));
+  }
+  .footer{ padding-bottom:max(14px, env(safe-area-inset-bottom)); }
+  .sidebar{
+    padding-top:max(20px, env(safe-area-inset-top));
+    padding-bottom:max(20px, env(safe-area-inset-bottom));
+  }
+  .content{
+    padding-left:max(var(--pad-x, 16px), env(safe-area-inset-left));
+    padding-right:max(var(--pad-x, 16px), env(safe-area-inset-right));
+  }
+  .welcome-screen{
+    padding:max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+}
+
+/* 100vh في سفاري = الارتفاع وشريط العنوان مخفي، فتطلع الصفحة أطول من الشاشة */
+body{ min-height:100vh; min-height:100dvh; }

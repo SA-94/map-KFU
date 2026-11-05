@@ -29,8 +29,10 @@ const DATASET_OVERRIDES = {
       paths: 'data/agri-food/male/paths.rel.js'
     },
     maps: {
-      floor1: 'assets/maps/map-1.png',
-      floor2: 'assets/maps/map-2.png'
+      // المخطط الجديد المرسوم كرسم متجه (tools/build_maps.py)؛
+      // صور map-*.png القديمة باقية كمرجع لإعادة التوليد فقط
+      floor1: 'assets/maps/floor-1.svg',
+      floor2: 'assets/maps/floor-2.svg'
     },
     // أبعاد صورة الخريطة الأصلية التي حُسبت عليها كل الإحداثيات
     imageSize: { width: 901, height: 988 }

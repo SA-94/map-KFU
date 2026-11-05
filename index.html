@@ -5,13 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>خريطة القاعات — كلية العلوم الزراعية والأغذية — جامعة الملك فيصل</title>
   <meta name="description" content="خريطة تفاعلية للوصول إلى قاعات ومكاتب كلية العلوم الزراعية والأغذية بجامعة الملك فيصل، مع مسار مرئي خطوة بخطوة ودعم الدورين.">
-  <meta name="theme-color" content="#10b981">
+  <meta name="theme-color" content="#f3eee3" id="themeColorMeta">
+  <meta name="color-scheme" content="light dark">
 
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
   <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="خريطة القاعات">
 
   <meta property="og:type" content="website">
@@ -21,71 +23,132 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1.3.1">
-  <link rel="stylesheet" href="css/sidebar-lux.css?v=1.3.1">
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=1.4.0">
+  <!-- طبقة الجوال/الآيفون: تُحمَّل أخيراً دائماً -->
+  <link rel="stylesheet" href="css/mobile.css?v=1.4.0">
+
+  <!-- رموز الواجهة: تُرسم مرة وتُستعمل بـ <use> -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.6"/><path d="M4 4v4.6h4.6"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.6v.1"/></symbol>
+    <symbol id="i-cap" viewBox="0 0 24 24"><path d="M2.5 9.5 12 5l9.5 4.5L12 14z"/><path d="M6.5 11.6V16c0 1.4 2.5 3 5.5 3s5.5-1.6 5.5-3v-4.4M21.5 9.5v5"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7.5 8 5.5 8-5.5"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20.5 11.6a8.4 8.4 0 0 1-12.4 7.4L3.5 20.5l1.4-4.4a8.4 8.4 0 1 1 15.6-4.5z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20c.9-3.6 3.8-5.6 7.5-5.6s6.6 2 7.5 5.6"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M4.5 5.5h15v10.5H9.5l-5 4z"/><path d="M8.5 9.5h7M8.5 12.5h4"/></symbol>
+  </svg>
 </head>
 <body>
-  <!-- Welcome Screen -->
+  <!-- شاشة الترحيب -->
   <div id="welcomeScreen" class="welcome-screen">
     <div class="welcome-content">
-      <div class="welcome-icon">🗺️</div>
+      <div class="mark welcome-mark" aria-hidden="true"><svg class="ico"><use href="#i-map"/></svg></div>
+      <p class="welcome-kicker">جامعة الملك فيصل</p>
       <h1 class="welcome-title">خريطة القاعات</h1>
       <p class="welcome-subtitle">كلية العلوم الزراعية والأغذية</p>
-      <p class="welcome-subtitle">جامعة الملك فيصل</p>
+      <div class="welcome-rule" aria-hidden="true"></div>
       <div class="welcome-switcher" aria-label="اختيار الكلية قبل الدخول">
         <div class="welcome-field">
-          <label for="welcomeCollegeSelect">اختر الكلية</label>
+          <label for="welcomeCollegeSelect">الكلية</label>
           <select id="welcomeCollegeSelect" aria-label="اختر الكلية">
             <option value="">-- اختر الكلية --</option>
           </select>
         </div>
         <div class="welcome-field">
-          <label for="welcomeAudienceSelect">اختر الشطر</label>
+          <label for="welcomeAudienceSelect">الشطر</label>
           <select id="welcomeAudienceSelect" aria-label="اختر الشطر" disabled>
             <option value="">-- اختر الشطر --</option>
           </select>
         </div>
         <p id="welcomeSelectionHint" class="welcome-selection-hint">اختر الكلية والشطر أولاً.</p>
       </div>
-      <button id="enterMapBtn" class="btn-enter">دخول الخريطة 🚀</button>
-      <p class="welcome-note">مبادرة لتسهيل الوصول للقاعات</p>
+      <button id="enterMapBtn" class="btn-enter">دخول الخريطة <svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+      <p class="welcome-note">مبادرة طلابية لتسهيل الوصول إلى القاعات</p>
     </div>
   </div>
 
-  <div class="tooltip" id="tooltip">اسحب للخريطة، واستخدم التكبير/التصغير باللمس</div>
+  <div class="tooltip" id="tooltip">اسحب الخريطة، وكبّرها بإصبعين</div>
 
   <header class="topbar" role="banner">
-    <button id="theme-toggle" class="theme-btn" aria-label="تبديل الوضع">🌙</button>
-    <h1 class="brand">خريطة القاعات</h1>
-    <button id="menuToggle" class="menu-toggle" aria-label="فتح القائمة" aria-expanded="false">
+    <button id="theme-toggle" class="theme-btn" aria-label="تبديل الوضع الليلي">
+      <svg class="ico ico-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+      <svg class="ico ico-sun" aria-hidden="true"><use href="#i-sun"/></svg>
+    </button>
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><svg class="ico"><use href="#i-map"/></svg></div>
+      <div class="brand-text">
+        <h1 class="brand-title">خريطة القاعات</h1>
+        <span class="brand-sub">كلية العلوم الزراعية والأغذية</span>
+      </div>
+    </div>
+    <button id="menuToggle" class="menu-toggle" aria-label="فتح القائمة" aria-expanded="false" aria-controls="sidebar">
       <span class="bar"></span><span class="bar"></span><span class="bar"></span>
     </button>
   </header>
 
-  <nav id="sidebar" class="sidebar" aria-hidden="true" inert>
-    <button id="closeSidebar" class="close-btn" aria-label="إغلاق القائمة">×</button>
-    <h2 class="side-h2">القائمة</h2>
-    <div class="side-actions">
-      <button id="openHomeInfo" class="btn-primary large">تعريف</button>
-      <button id="openDoctorModal" class="btn-primary large doctor-btn">🎓 مكتب دكتورك</button>
-      <button id="openEmailModal" class="btn-primary large">استخراج البريد الجامعي</button>
-
-      <!-- رقم العميد بصيغة دولية صحيحة: 966 + الرقم بدون صفر البداية -->
-      <a id="waDeanBtn" class="btn-primary large" href="https://wa.me/966135895711" target="_blank" rel="noopener noreferrer" role="button">مراسلة العميد عبر واتساب</a>
-
-      <button id="openDeanModal" class="btn-primary large">عن العميد</button>
-      <button id="openComplaintModal" class="btn-primary large accent">✉️ الشكاوى والاقتراحات</button>
-
+  <nav id="sidebar" class="sidebar" aria-hidden="true" aria-label="القائمة" inert>
+    <div class="side-head">
+      <div class="mark" aria-hidden="true"><svg class="ico"><use href="#i-map"/></svg></div>
+      <div class="brand-text">
+        <span class="brand-title">خريطة القاعات</span>
+        <span class="brand-sub">جامعة الملك فيصل</span>
+      </div>
+      <button id="closeSidebar" class="close-btn" aria-label="إغلاق القائمة"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
 
-    <div class="credit-card" aria-hidden="false" style="margin-top:12px;">
+    <div class="side-actions">
+      <button id="openDoctorModal" class="btn-primary large doctor-btn">
+        <span class="row-ico"><svg class="ico" aria-hidden="true"><use href="#i-cap"/></svg></span>
+        <span class="label">مكتب دكتورك<small>ابحث بالاسم أو رقم المكتب</small></span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </button>
+
+      <h2 class="side-h2">خدمات</h2>
+      <button id="openEmailModal" class="btn-primary large">
+        <span class="row-ico"><svg class="ico" aria-hidden="true"><use href="#i-mail"/></svg></span>
+        <span class="label">استخراج البريد الجامعي</span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </button>
+      <!-- رقم العميد بصيغة دولية صحيحة: 966 + الرقم بدون صفر البداية -->
+      <a id="waDeanBtn" class="btn-primary large" href="https://wa.me/966135895711" target="_blank" rel="noopener noreferrer">
+        <span class="row-ico"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg></span>
+        <span class="label">مراسلة العميد عبر واتساب</span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </a>
+      <button id="openDeanModal" class="btn-primary large">
+        <span class="row-ico"><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg></span>
+        <span class="label">عن العميد</span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </button>
+
+      <h2 class="side-h2">المبادرة</h2>
+      <button id="openHomeInfo" class="btn-primary large">
+        <span class="row-ico"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg></span>
+        <span class="label">تعريف بالخريطة</span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </button>
+      <button id="openComplaintModal" class="btn-primary large accent">
+        <span class="row-ico"><svg class="ico" aria-hidden="true"><use href="#i-note"/></svg></span>
+        <span class="label">الشكاوى والاقتراحات</span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </button>
+    </div>
+
+    <div class="credit-card">
       <div class="credit-inner">
         <div class="credit-title">تصميم وبرمجة</div>
         <div id="creditName" class="credit-name">فهد القحطاني</div>
         <div class="credit-meta">طالب كلية العلوم الزراعية والأغذية — مطوّر واجهات إلكترونية والألعاب التفاعلية</div>
         <div class="credit-supervisor">بإشراف الأستاذ منصور البحري</div>
-        <div class="credit-badge">✨ v1.1</div>
+        <div class="credit-badge">الإصدار 1.4.0</div>
       </div>
       <div class="credit-holo"></div>
     </div>
@@ -94,8 +157,7 @@
   <main class="content">
     <div id="mapContainer" class="map-container" aria-label="خريطة القاعات">
       <div id="mapWrapper" class="map-wrapper">
-        <!-- استبدل map-1.png بصورتك الفعلية -->
-        <img id="mapImage" src="assets/maps/map-1.png" alt="خريطة القاعات">
+        <img id="mapImage" src="assets/maps/floor-1.svg" alt="خريطة القاعات">
         <canvas id="pathCanvas" aria-hidden="true"></canvas>
         <div id="pin" aria-hidden="true" title="موقع القاعة"></div>
         <div id="animMarker" aria-hidden="true" title="مؤشر المسار"></div>
@@ -103,52 +165,72 @@
     </div>
 
     <aside class="form-container" aria-label="أدوات البحث">
+      <div class="panel-head">
+        <h2>إلى أين؟</h2>
+        <p>اكتب رقم القاعة أو اسم المكان، ونرسم لك الطريق من المدخل حتى الباب.</p>
+      </div>
+
       <div id="stairsSlot"></div>
 
-      <label for="roomInput" class="visually-hidden">رقم القاعة</label>
-      <input type="text" id="roomInput" list="roomList" placeholder="اكتب رقم القاعة" aria-label="رقم القاعة">
+      <div class="search-field">
+        <label for="roomInput" class="visually-hidden">رقم القاعة</label>
+        <input type="text" id="roomInput" list="roomList" placeholder="رقم القاعة، مثل 1045" aria-label="رقم القاعة" enterkeyhint="search" autocomplete="off" autocapitalize="none" autocorrect="off">
+        <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+      </div>
       <datalist id="roomList"></datalist>
 
       <div class="form-actions">
         <button id="searchBtn" class="btn-primary">ابحث</button>
-        <button id="resetBtn" class="btn-secondary">إعادة تعيين</button>
+        <button id="resetBtn" class="btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg>إعادة تعيين</button>
       </div>
 
-      <p id="errorMessage" class="error-message" role="status" aria-live="polite" style="display:none;">يرجى إدخال رقم قاعة صحيح.</p>
+      <p id="errorMessage" class="error-message" role="status" aria-live="polite">يرجى إدخال رقم قاعة صحيح.</p>
+
+      <div class="legend" aria-label="رموز الخريطة">
+        <h3>رموز الخريطة</h3>
+        <ul>
+          <li><i class="sw-wc"></i>دورة مياه</li>
+          <li><i class="sw-staff"></i>دورة مياه الدكاترة</li>
+          <li><i class="sw-lift"></i>مصعد</li>
+          <li><i class="sw-exit"></i>مخرج</li>
+          <li><i class="sw-corr"></i>ممر</li>
+          <li><i class="sw-door"></i>باب</li>
+        </ul>
+      </div>
     </aside>
   </main>
 
   <footer class="footer">الحقوق محفوظة للطالب فهد القحطاني © 2025 — بإشراف الأستاذ منصور البحري</footer>
 
-  <!-- Home Info Modal -->
+  <!-- تعريف -->
   <div id="homeInfoModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="homeTitle" aria-modal="true">
     <div class="modal-backdrop" id="homeBackdrop"></div>
     <div class="modal-card fullscreen" role="document" aria-labelledby="homeTitle">
       <button id="closeHomeInfo" class="modal-close" data-close aria-label="إغلاق">×</button>
       <h3 id="homeTitle">عن خريطة القاعات</h3>
       <pre id="homeTyping" class="typing-output" aria-live="polite">مبادرة طلابية لتسهيل الوصول إلى القاعات داخل كلية العلوم الزراعية والأغذية.</pre>
-      <div style="margin-top:12px;text-align:left;"><button id="closeHomeInfoBtn" class="btn-secondary" data-close>إغلاق</button></div>
+      <div class="modal-actions-end"><button id="closeHomeInfoBtn" class="btn-secondary" data-close>إغلاق</button></div>
     </div>
   </div>
 
-  <!-- Email Modal -->
+  <!-- البريد الجامعي -->
   <div id="emailModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="modalTitle" aria-modal="true">
     <div class="modal-backdrop" id="modalBackdrop"></div>
     <div class="modal-card email-fancy fullscreen" role="document" aria-labelledby="modalTitle">
       <button id="closeModal" class="modal-close" data-close aria-label="إغلاق">×</button>
-      <h3 id="modalTitle">استخراج البريد الجامعي</h3>
-      <p class="hint email-hint">أدخل الرقم الجامعي لإظهار البريد الرسمي الخاص بك</p>
+      <h3 id="modalTitle">البريد الجامعي</h3>
+      <p class="hint email-hint">أدخل رقمك الجامعي ليظهر بريدك الرسمي.</p>
       <label for="uniIdInput">الرقم الجامعي</label>
-      <input id="uniIdInput" type="text" placeholder="مثال: 221122334" inputmode="numeric">
+      <input id="uniIdInput" type="text" placeholder="مثال: 221122334" inputmode="numeric" autocomplete="off">
 
-      <div class="modal-row" style="margin-top:8px;">
-        <button id="genEmailBtn" class="btn-primary">استخرج</button>
+      <div class="modal-row">
+        <button id="genEmailBtn" class="btn-primary">استخرج البريد</button>
         <button id="closeModalBtn" class="btn-secondary" data-close>إغلاق</button>
       </div>
 
-      <div id="emailResult" class="email-result" style="display:none;margin-top:10px;">
-        <input id="emailOutput" readonly>
-        <div class="modal-row" style="margin-top:8px;">
+      <div id="emailResult" class="email-result" style="display:none;margin-top:12px;">
+        <input id="emailOutput" readonly aria-label="البريد الجامعي">
+        <div class="modal-row">
           <button id="copyEmailBtn" class="btn-copy">نسخ</button>
           <button id="openMailBtn" class="btn-primary">فتح في البريد</button>
         </div>
@@ -156,98 +238,100 @@
     </div>
   </div>
 
-  <!-- Complaint Modal -->
+  <!-- الشكاوى والاقتراحات -->
   <div id="complaintModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="complaintTitle" aria-modal="true">
     <div class="modal-backdrop" id="complaintBackdrop"></div>
     <div class="modal-card fullscreen" role="document" aria-labelledby="complaintTitle">
       <button id="closeComplaint" class="modal-close" data-close aria-label="إغلاق">×</button>
-      <h3 id="complaintTitle">✉️ تواصل معنا / رفع اقتراح</h3>
+      <h3 id="complaintTitle">الشكاوى والاقتراحات</h3>
       <div class="complaint-instructions">
-        <strong>ماذا تفعل هذه النافذة؟</strong>
-        <p>أرسل لنا ملاحظة، شكوى، أو اقتراح لتحسين الخريطة. سيتلقاها فريق الدعم مباشرة.</p>
+        <strong>ملاحظتك تصل لفريق الدعم مباشرة</strong>
+        <p>أرسل شكوى أو اقتراحاً لتحسين الخريطة، وسنرد عليك في أقرب وقت.</p>
       </div>
 
       <div class="grid">
-        <label for="complainName">الاسم الكامل <span style="color:#dc2626;">*</span></label>
-        <input id="complainName" type="text" placeholder="أدخل الاسم بالعربي فقط" required>
+        <label for="complainName">الاسم الكامل <span class="req">*</span></label>
+        <input id="complainName" type="text" placeholder="بالعربي فقط" autocomplete="name" required>
 
-        <label for="complainUni">الرقم الجامعي <span style="color:#dc2626;">*</span></label>
+        <label for="complainUni">الرقم الجامعي <span class="req">*</span></label>
         <input id="complainUni" type="text" inputmode="numeric" placeholder="مثال: 221122334" required>
 
-        <label for="complainPhone">رقم الجوال <span style="color:#dc2626;">*</span></label>
-        <input id="complainPhone" type="tel" inputmode="numeric" placeholder="مثال: 0512345678" required>
+        <label for="complainPhone">رقم الجوال <span class="req">*</span></label>
+        <input id="complainPhone" type="tel" inputmode="numeric" placeholder="مثال: 0512345678" autocomplete="tel" required>
 
-        <label for="complainMsg">نص الشكوى / الاقتراح</label>
-        <textarea id="complainMsg" rows="6" placeholder="اكتب الشكوى أو الاقتراح..."></textarea>
+        <label for="complainMsg">نص الشكوى أو الاقتراح</label>
+        <textarea id="complainMsg" rows="6" placeholder="اكتب رسالتك هنا"></textarea>
 
         <label for="complainFile">إرفاق صورة (اختياري)</label>
         <input id="complainFile" type="file" accept="image/*">
 
         <div id="previewWrap" class="preview-wrap" style="display:none;">
-          <div class="preview-title">معاينة الصورة المرفقة:</div>
-          <img id="previewImg" src="" alt="معاينة">
-          <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;">
-            <button id="removePreview" class="btn-secondary small" data-remove>❌ إزالة الصورة</button>
-          </div>
+          <div class="preview-title">الصورة المرفقة</div>
+          <img id="previewImg" src="" alt="معاينة الصورة المرفقة">
+          <button id="removePreview" class="btn-secondary small" data-remove>إزالة الصورة</button>
         </div>
       </div>
 
-      <div class="modal-row" style="margin-top:12px;">
+      <div class="modal-row">
         <button id="sendComplaintBtn" class="btn-primary accent">أرسل</button>
         <button id="closeComplaintBtn" class="btn-secondary" data-close>إغلاق</button>
       </div>
 
-      <div id="complaintStatus" class="status" style="margin-top:10px;"></div>
-      <div class="note" style="margin-top:8px;">ملاحظة: سيتم الرد في أقرب وقت ممكن وشكرًا لتفهمكم.</div>
+      <div id="complaintStatus" class="status"></div>
     </div>
   </div>
 
-  <!-- Dean Modal -->
+  <!-- عن العميد -->
   <div id="deanModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="deanTitle" aria-modal="true">
     <div class="modal-backdrop" id="deanBackdrop"></div>
     <div class="modal-card fullscreen" role="document" aria-labelledby="deanTitle">
       <button id="closeDean" class="modal-close" data-close aria-label="إغلاق">×</button>
       <h3 id="deanTitle">عميد الكلية</h3>
       <div class="modal-inner">
-        <p><strong>اللقب:</strong> عميد كلية العلوم الزراعية والأغذية</p>
-        <p><strong>الدور:</strong> مسؤول عن إدارة الكلية وأقسامها العلمية.</p>
-        <p><strong>كيفية التواصل:</strong> اضغط "مراسلة العميد عبر واتساب" في القائمة لإرسال رسالة مباشرة.</p>
-        <div style="margin-top:12px;text-align:left;"><button id="closeDeanBtn" class="btn-secondary" data-close>إغلاق</button></div>
+        <div class="dean-facts">
+          <p><strong>اللقب</strong>عميد كلية العلوم الزراعية والأغذية</p>
+          <p><strong>الدور</strong>مسؤول عن إدارة الكلية وأقسامها العلمية.</p>
+          <p><strong>التواصل</strong>اضغط «مراسلة العميد عبر واتساب» في القائمة لإرسال رسالة مباشرة.</p>
+        </div>
+        <div class="modal-actions-end"><button id="closeDeanBtn" class="btn-secondary" data-close>إغلاق</button></div>
       </div>
     </div>
   </div>
 
-  <!-- Doctor Modal - مكاتب الدكاترة -->
+  <!-- مكاتب الدكاترة -->
   <div id="doctorModal" class="modal" role="dialog" aria-hidden="true" aria-labelledby="doctorTitle" aria-modal="true">
     <div class="modal-backdrop" id="doctorBackdrop"></div>
     <div class="modal-card fullscreen" role="document" aria-labelledby="doctorTitle">
       <button id="closeDoctor" class="modal-close" data-close aria-label="إغلاق">×</button>
-      <h3 id="doctorTitle">🎓 مكتب دكتورك</h3>
-      <p class="hint">ابحث عن مكتب الدكتور بالاسم أو رقم المكتب 🔍</p>
-      
-      <input id="doctorSearchInput" class="doctor-search-input" type="text" placeholder="اكتب اسم الدكتور أو رقم المكتب...">
-      
+      <h3 id="doctorTitle">مكتب دكتورك</h3>
+      <p class="hint">ابحث بالاسم أو رقم المكتب، ثم اضغط على النتيجة لعرض الطريق.</p>
+
+      <input id="doctorSearchInput" class="doctor-search-input" type="search" placeholder="اسم الدكتور أو رقم المكتب" autocomplete="off" enterkeyhint="search">
+
       <div id="doctorList" class="doctor-list"></div>
-      
-      <div style="margin-top:12px;text-align:left;">
+
+      <div class="modal-actions-end">
         <button id="closeDoctorBtn" class="btn-secondary" data-close>إغلاق</button>
       </div>
     </div>
   </div>
 
   <!-- external data + scripts (مضمّنة مرة واحدة) -->
-  <script src="js/dataset.registry.js?v=1.3.1" defer></script>
-  <script src="data/agri-food/male/rooms.js?v=1.3.1" defer></script>
+  <script src="js/dataset.registry.js?v=1.4.0" defer></script>
+  <script src="data/agri-food/male/rooms.js?v=1.4.0" defer></script>
   <!-- paths.rel.js سيتم تحميله عند الطلب (lazy-load) لتحسين الأداء -->
-  <script src="data/agri-food/male/doctors.js?v=1.3.1" defer></script>
-  <script src="js/script.js?v=1.3.1" defer></script>
+  <script src="data/agri-food/male/doctors.js?v=1.4.0" defer></script>
+  <script src="js/script.js?v=1.4.0" defer></script>
 
-  <!-- عامل الخدمة: يجعل الخريطة تعمل بدون إنترنت داخل المبنى -->
+  <!-- ميزة العمل بدون إنترنت أُزيلت: نلغي أي عامل خدمة قديم ونمسح كاشه -->
   <script>
-    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
-      });
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then(regs => regs.forEach(r => r.unregister()))
+        .catch(() => {});
+    }
+    if (window.caches) {
+      caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
     }
   </script>
 </body>

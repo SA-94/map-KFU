@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>محرر الخريطة</title>
+<style>
+  :root{
+    --bg:#F4F1EA; --panel:#FFFDF8; --ink:#1F2730; --muted:#6B7480; --line:#E2DCCF;
+    --accent:#2F7F86; --accent-ink:#fff; --danger:#B42318;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font:14px/1.4 Tahoma,"Segoe UI",Arial,sans-serif}
+  body{display:flex;flex-direction:column}
+  header{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 14px;
+    background:var(--panel);border-bottom:1px solid var(--line)}
+  .grp{display:flex;gap:4px;align-items:center}
+  .grp + .grp{padding-inline-start:14px;border-inline-start:1px solid var(--line)}
+  button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:6px 10px;border-radius:8px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+  button:hover{border-color:#C9C0AE}
+  button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  button:disabled{opacity:.5;cursor:default}
+  #palette{flex-wrap:wrap}
+  #palette button{padding:4px 8px;white-space:nowrap}
+  #palette svg{width:24px;height:24px}
+  header .grp{flex-wrap:wrap}
+  label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+  #status{margin-inline-start:auto;color:var(--muted)}
+  #status.dirty{color:var(--danger)}
+  main{flex:1;min-height:0;position:relative}
+  #stage{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none;user-select:none}
+  #stage.view{cursor:grab}
+  footer{padding:6px 14px;background:var(--panel);border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  kbd{background:#fff;border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:12px}
+  .hidden{display:none !important}
+  #zoomCtl{position:absolute;left:14px;bottom:14px;display:flex;align-items:center;gap:2px;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px;
+    box-shadow:0 4px 14px rgba(31,39,48,.12)}
+  #zoomCtl button{border:0;min-width:36px;height:36px;justify-content:center;font-size:20px;line-height:1;padding:0 8px}
+  #zoomCtl #zfit{font-size:13px}
+  #zpct{min-width:52px;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <div class="grp" id="floors">
+    <button data-floor="1" class="on">الطابق الأرضي</button>
+    <button data-floor="2">الطابق العلوي</button>
+  </div>
+  <div class="grp" id="modes">
+    <button data-mode="doors" class="on">● الأبواب</button>
+    <button data-mode="icons">الرموز</button>
+    <button data-mode="view">معاينة النتيجة</button>
+  </div>
+  <div class="grp hidden" id="palette"></div>
+  <div class="grp">
+    <label><input type="checkbox" id="showPaths"> المسارات</label>
+  </div>
+  <div class="grp" id="doorTools">
+    <button id="suggest" title="يضيف نقاط الأبواب التي اكتشفها البرنامج من المخطط القديم">اقتراح أبواب</button>
+    <button id="clearDoors">مسح أبواب الطابق</button>
+  </div>
+  <div class="grp">
+    <button id="undo" title="Ctrl+Z">تراجع</button>
+    <button id="save" class="primary" title="Ctrl+S">حفظ وبناء</button>
+    <button id="fixPaths" title="يعيد رسم كل المسارات: أقصر طريق في منتصف السيب، ثم الباب بزاوية قائمة">إعادة بناء شبكة المسارات</button>
+  </div>
+  <span id="status">جارٍ التحميل…</span>
+</header>
+<main><svg id="stage" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="zoomCtl" dir="ltr">
+    <button id="zin" title="تكبير (+)">+</button>
+    <span id="zpct">100%</span>
+    <button id="zout" title="تصغير (−)">−</button>
+    <button id="zfit" title="الخريطة كاملة (0)">الحجم الكامل</button>
+  </div></main>
+<footer id="help"></footer>
+
+<script>
+'use strict';
+const W = 901, H = 988, NS = 'http://www.w3.org/2000/svg';
+
+// نفس ألوان ورموز المولّد (tools/build_maps.py) حتى يكون ما تراه هو الناتج
+const ICONS = {
+  wc:      {name:'دورة مياه عامة',  color:'#2F7F86', s:13},
+  wcStaff: {name:'دورة مياه الدكاترة', color:'#6B5B95', s:13},
+  lift:    {name:'مصعد',           color:'#C2410C', s:13},
+  stairs:  {name:'درج (أفقي)',      color:'#8A6D3B', s:13},
+  stairsV: {name:'درج (عمودي)',     color:'#8A6D3B', s:13},
+  mosque:  {name:'مسجد',           color:'#15803D', s:16},
+  theater: {name:'مسرح',           color:'#9A6B2F', s:16},
+  exit:    {name:'خروج (أفقي)',     color:'#15803D'},
+  exitV:   {name:'خروج (عمودي)',    color:'#15803D'},
+};
+const SYMBOLS = `
+  <symbol id="i-wc" viewBox="0 0 24 24"><circle cx="8" cy="5" r="2.2" fill="#fff"/><path d="M5.6 9h4.8l.9 7H9.6l-.4 6H6.8l-.4-6H4.7z" fill="#fff"/><circle cx="16.5" cy="5" r="2.2" fill="#fff"/><path d="M14 9h5v6h-1.3v7h-2.4v-7H14z" fill="#fff"/></symbol>
+  <symbol id="i-wcStaff" viewBox="0 0 24 24"><path d="M12 3 2 7.5 12 12l8-3.6V14h1.6V7.5z" fill="#fff"/><path d="M6 10.6V15c0 1.7 2.7 3.2 6 3.2s6-1.5 6-3.2v-4.4L12 13.3z" fill="#fff"/></symbol>
+  <symbol id="i-lift" viewBox="0 0 24 24"><rect x="3" y="2.5" width="18" height="19" rx="2.5" fill="none" stroke="#fff" stroke-width="2"/><path d="M8 10.5 12 6l4 4.5zM8 13.5l4 4.5 4-4.5z" fill="#fff"/></symbol>
+  <symbol id="i-stairs" viewBox="0 0 24 24"><path d="M3 20h5v-4.5h4.5V11H17V6.5h4V4h-6.5v4.5H10V13H5.5v4.5H3z" fill="#fff"/></symbol>
+  <symbol id="i-mosque" viewBox="0 0 24 24"><path d="M12 3c-.6 1.8-4.5 3.6-4.5 7h9C16.5 6.6 12.6 4.8 12 3z" fill="#fff"/><path d="M5 11h14v9H14v-3.5a2 2 0 0 0-4 0V20H5z" fill="#fff"/><rect x="2" y="7" width="2" height="13" fill="#fff"/><rect x="20" y="7" width="2" height="13" fill="#fff"/></symbol>
+  <symbol id="i-theater" viewBox="0 0 24 24"><path d="M3 5h18v3c-2 0-3 1.5-3 3.5S19 15 21 15v4H3v-4c2 0 3-1.5 3-3.5S5 8 3 8z" fill="none" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="2.3" fill="#fff"/></symbol>
+  <symbol id="i-exit" viewBox="0 0 24 24"><path d="M4 3h9v4h-2V5H6v14h5v-2h2v4H4z" fill="#fff"/><path d="M14 8l5 4-5 4v-3H9v-2h5z" fill="#fff"/></symbol>`;
+
+// رسم الرمز حول (0,0) بنفس مقاس الناتج
+// الدرج مرسوم درجات (نفس stairs_svg في build_maps.py)
+function stairsMarkup(vertical){
+  const w = vertical ? 16 : 28, h = vertical ? 28 : 16, x = -w/2, y = -h/2;
+  let d = '', arrow;
+  if (!vertical){
+    for (let t = x + 2.2; t < x + w - 1; t += 2.2) d += `M${t.toFixed(1)},${(y+1).toFixed(1)}V${(y+h-1).toFixed(1)}`;
+    arrow = `M${x+3},${y+h/2}H${x+w-3}m-2.5,-2l2.5,2l-2.5,2`;
+  } else {
+    for (let t = y + 2.2; t < y + h - 1; t += 2.2) d += `M${(x+1).toFixed(1)},${t.toFixed(1)}H${(x+w-1).toFixed(1)}`;
+    arrow = `M${x+w/2},${y+h-3}V${y+3}m-2,2.5l2,-2.5l2,2.5`;
+  }
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1.2" fill="#E8DFCB" stroke="#2E3640" stroke-width="0.8"/>
+    <path d="${d}" stroke="#B9A98A" stroke-width="0.7" fill="none"/>
+    <path d="${arrow}" stroke="#2E3640" stroke-width="0.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+function iconMarkup(type, size){
+  const I = ICONS[type];
+  if (type === 'stairs' || type === 'stairsV') return stairsMarkup(type === 'stairsV');
+  if (type === 'exit')
+    return `<rect x="-15" y="-6.5" width="30" height="13" rx="4" fill="${I.color}"/>
+            <text fill="#fff" font-size="7.5" font-weight="700" text-anchor="middle" dominant-baseline="central">خروج</text>`;
+  if (type === 'exitV')
+    return `<rect x="-6.5" y="-15" width="13" height="30" rx="4" fill="${I.color}"/>
+            <use href="#i-exit" x="-5.5" y="-5.5" width="11" height="11"/>`;
+  const s = size || I.s;
+  return `<rect x="${-s/2}" y="${-s/2}" width="${s}" height="${s}" rx="${(s*.28).toFixed(1)}" fill="${I.color}"/>
+          <use href="#i-${type}" x="${(-s/2+s*.14).toFixed(2)}" y="${(-s/2+s*.14).toFixed(2)}" width="${(s*.72).toFixed(2)}" height="${(s*.72).toFixed(2)}"/>`;
+}
+
+// ───────── شبكة الجدران (منسوخة من build_maps.py حرفياً) ─────────
+// النقطة تُلصق بالجدار ويُرسم الباب هنا بنفس طريقة الخريطة النهائية،
+// فما تراه في المحرر هو نفسه ما يظهر في الموقع.
+const G = {};                       // {floor: {X, Y, grid, corr, out, fill}}
+const DOOR_COLOR = '#B08A4E';
+function bs(A, v){ let lo = 0, hi = A.length; while (lo < hi){ const m = (lo + hi) >> 1; if (A[m] < v) lo = m + 1; else hi = m; } return lo; }
+function labAt(g, x, y){ return g.grid[bs(g.Y, y + 0.5) - 1][bs(g.X, x + 0.5) - 1]; }
+
+function placeMarkDoor(g, cx, cy, reach = 14){
+  cx = Math.min(W - 1, Math.max(0, cx)); cy = Math.min(H - 1, Math.max(0, cy));
+  const own = labAt(g, Math.floor(cx), Math.floor(cy));
+  const isRoom = l => l !== g.corr && l !== g.out;
+  let best = null;
+  for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+    for (let dist = 1; dist <= reach; dist++){
+      const x = Math.floor(cx + dx * dist), y = Math.floor(cy + dy * dist);
+      if (x < 0 || x >= W || y < 0 || y >= H) break;
+      const lab = labAt(g, x, y);
+      if (lab === own) continue;
+      if (isRoom(own) && isRoom(lab)) break;     // لا أبواب بين غرفتين
+      const inside = isRoom(own) ? own : isRoom(lab) ? lab : own === g.corr ? own : lab;
+      let wall, gap;
+      if (dx){ wall = Math.floor(cx + dx * (dist - 1)) + (dx > 0 ? 1 : 0); gap = Math.abs(wall - cx); }
+      else   { wall = Math.floor(cy + dy * (dist - 1)) + (dy > 0 ? 1 : 0); gap = Math.abs(wall - cy); }
+      const d = dx || dy, into = inside === own ? -d : d;
+      if (!best || gap < best.gap) best = {gap, vertical: !!dx, wall, along: dx ? cy : cx, into, room: inside};
+      break;
+    }
+  }
+  return best;
+}
+function fitDoor(g, p, r = 6, margin = 2, loose = false){
+  const w = Math.floor(p.wall);
+  const [rc, oc] = p.into > 0 ? [w, w - 1] : [w - 1, w];
+  const n = p.vertical ? H : W, lim = p.vertical ? W : H;
+  if (rc < 0 || rc >= lim || oc < 0 || oc >= lim) return null;
+  const get = p.vertical ? t => [labAt(g, rc, t), labAt(g, oc, t)] : t => [labAt(g, t, rc), labAt(g, t, oc)];
+  const a = Math.min(n - 1, Math.max(0, Math.round(p.along)));
+  const [room, other] = get(a);
+  if (room !== p.room || other === room) return null;
+  const same = loose ? t => { const q = get(t); return q[0] === room && q[1] !== room; }
+                     : t => { const q = get(t); return q[0] === room && q[1] === other; };
+  let lo = a, hi = a;
+  while (lo - 1 >= 0 && same(lo - 1)) lo--;
+  while (hi + 1 < n && same(hi + 1)) hi++;
+  const half = r / 2 + margin;
+  if (hi + 1 - lo < r + 2 * margin) return null;
+  return {...p, along: Math.min(Math.max(p.along, lo + half), hi + 1 - half), other};
+}
+function snapDoor(x, y){
+  const g = G[floor]; if (!g) return null;
+  const p = placeMarkDoor(g, x, y);
+  const q = p && (fitDoor(g, p) || fitDoor(g, p, 5, 0.5) || fitDoor(g, p, 5, 0.5, true));
+  return q && !(g.stairs || []).includes(q.room) ? q : null;   // لا أبواب للدرج
+}
+// النقطة تُخزَّن داخل جهة الغرفة بجانب الجدار مباشرة: المولّد يعيد نفس الباب بالضبط
+function doorDot(p){
+  const k = +(p.wall + p.into * 0.6).toFixed(1), a = +p.along.toFixed(1);
+  return p.vertical ? {x:k, y:a} : {x:a, y:k};
+}
+function doorSvg(p){
+  const g = G[floor], r = 6, w = p.wall, a = p.along, s = p.into;
+  const h = (p.other === g.out ? 3 : 1.5) / 2 + 0.7;
+  let cutIn, cutOut, j0, j1, tip, sweep;
+  if (p.vertical){
+    cutIn = [Math.min(w, w + s*h), a - r/2, h, r]; cutOut = [Math.min(w, w - s*h), a - r/2, h, r];
+    j0 = [w, a - r/2]; j1 = [w, a + r/2]; tip = [w + s*r, a - r/2]; sweep = s > 0 ? 1 : 0;
+  } else {
+    cutIn = [a - r/2, Math.min(w, w + s*h), r, h]; cutOut = [a - r/2, Math.min(w, w - s*h), r, h];
+    j0 = [a - r/2, w]; j1 = [a + r/2, w]; tip = [a - r/2, w + s*r]; sweep = s > 0 ? 0 : 1;
+  }
+  const f = q => q[0].toFixed(2) + ',' + q[1].toFixed(2);
+  const rect = (c, col) => `<rect x="${c[0]}" y="${c[1]}" width="${c[2]}" height="${c[3]}" fill="${col}"/>`;
+  return rect(cutIn, g.fill[p.room]) + rect(cutOut, g.fill[p.other]) +
+    `<path d="M${f(j0)}L${f(tip)}" stroke="${DOOR_COLOR}" stroke-width="1.2" stroke-linecap="round"/>` +
+    `<path d="M${f(tip)}A${r},${r} 0 0 ${sweep} ${f(j1)}" fill="none" stroke="${DOOR_COLOR}" stroke-width="0.6"/>`;
+}
+
+const $ = id => document.getElementById(id);
+const stage = $('stage');
+stage.innerHTML = `<defs>${SYMBOLS}</defs>
+  <image id="bg" x="0" y="0" width="${W}" height="${H}"/>
+  <g id="pathsG" pointer-events="none"></g>
+  <g id="iconsG"></g>
+  <g id="doorsG"></g>`;
+
+let floor = '1', mode = 'doors', iconType = 'wc';
+let marks = {'1':{icons:[],doors:[]}, '2':{icons:[],doors:[]}};
+let report = {}, rooms = {}, paths = {};
+let vb = {x:0, y:0, w:W, h:H};
+let sel = null;            // {kind, i}
+let undoStack = [], dirty = false, busy = false;
+
+// ───────── أدوات ─────────
+const bust = () => '?t=' + Date.now();
+async function getJSON(url){ const r = await fetch(url + bust(), {cache:'no-store'}); if(!r.ok) throw new Error(url); return r.json(); }
+async function loadScriptData(url, prop){
+  const txt = await (await fetch(url + bust(), {cache:'no-store'})).text();
+  const win = {}; new Function('window', txt)(win); return win[prop] || {};
+}
+function setStatus(t, isDirty){ const s = $('status'); s.textContent = t; s.classList.toggle('dirty', !!isDirty); }
+function markDirty(){ dirty = true; setStatus('تعديلات غير محفوظة — Ctrl+S للحفظ', true); }
+function pushUndo(){ undoStack.push(JSON.stringify(marks)); if (undoStack.length > 200) undoStack.shift(); }
+function undo(){ if(!undoStack.length) return; marks = JSON.parse(undoStack.pop()); sel = null; markDirty(); render(); }
+function unitsPerPx(){ const r = stage.getBoundingClientRect(); return Math.max(vb.w / r.width, vb.h / r.height); }
+function toSvg(e){ const p = stage.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(stage.getScreenCTM().inverse()); }
+function applyVB(){
+  stage.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  const z = $('zpct'); if (z) z.textContent = Math.round(W / vb.w * 100) + '%';
+  render();
+}
+
+// ───────── الرسم ─────────
+function setBg(){
+  const url = mode === 'view' ? `../assets/maps/floor-${floor}.svg` : `.cache/floor-${floor}.base.svg`;
+  $('bg').setAttribute('href', url + bust());
+}
+function render(){
+  const u = unitsPerPx(), F = marks[floor];
+
+  // الأبواب: الباب مرسوم كما سيظهر، والنقطة السوداء على الجدار للإمساك به
+  const r = 4 * u, sw = 1.4 * u;
+  $('doorsG').innerHTML = mode === 'view' ? '' : F.doors.map((d, i) => {
+    const on = sel && sel.kind === 'door' && sel.i === i;
+    const p = snapDoor(d.x, d.y);
+    const bad = !p;
+    const hx = p ? (p.vertical ? p.wall : p.along) : d.x, hy = p ? (p.vertical ? p.along : p.wall) : d.y;
+    return `<g ${mode === 'doors' ? '' : 'pointer-events="none" opacity=".45"'}>
+      ${p ? `<g pointer-events="none">${doorSvg(p)}</g>` : ''}
+      <circle data-kind="door" data-i="${i}" cx="${hx}" cy="${hy}" r="${on ? r*1.3 : r}"
+        fill="${bad ? '#B42318' : '#111'}" fill-opacity="${p && !on ? .55 : 1}"
+        stroke="${on ? '#F59E0B' : '#fff'}" stroke-width="${on ? sw*1.6 : sw}" style="cursor:move"/></g>`;
+  }).join('');
+
+  $('iconsG').innerHTML = mode === 'view' ? '' : F.icons.map((ic, i) => {
+    const on = sel && sel.kind === 'icon' && sel.i === i;
+    return `<g data-kind="icon" data-i="${i}" transform="translate(${ic.x} ${ic.y})" style="cursor:move"
+      ${mode === 'icons' ? '' : 'pointer-events="none" opacity=".35"'}>
+      ${on ? `<circle r="${12 + 3*u}" fill="none" stroke="#F59E0B" stroke-width="${2*u}"/>` : ''}
+      ${iconMarkup(ic.type, ic.s)}</g>`;
+  }).join('');
+
+  // المسارات للمقارنة
+  if ($('showPaths').checked){
+    let out = '';
+    for (const [k, pts] of Object.entries(paths)){
+      const rm = rooms[k]; if (!rm || String(rm.floor) !== floor || !pts.length) continue;
+      out += `<polyline points="${pts.map(p => p.x + ',' + p.y).join(' ')}" fill="none" stroke="rgba(37,99,235,.55)" stroke-width="${Math.max(.8, 1.4*u)}"/>`;
+      const e = pts[pts.length - 1];
+      out += `<circle cx="${e.x}" cy="${e.y}" r="${2.2*u + .6}" fill="#DC2626"/>`;
+    }
+    $('pathsG').innerHTML = out;
+  } else $('pathsG').innerHTML = '';
+}
+
+// ───────── الواجهة ─────────
+function buildPalette(){
+  $('palette').innerHTML = Object.keys(ICONS).map(t =>
+    `<button data-type="${t}" title="${ICONS[t].name}" class="${t === iconType ? 'on' : ''}">
+      <svg viewBox="-16 -16 32 32"><defs>${SYMBOLS}</defs>${iconMarkup(t)}</svg>${ICONS[t].name}</button>`).join('');
+}
+function setHelp(){
+  const common = ' • <kbd>العجلة</kbd> تكبير • اسحب الفراغ لتحريك الخريطة • <kbd>Ctrl+Z</kbd> تراجع • <kbd>Ctrl+S</kbd> حفظ';
+  $('help').innerHTML = {
+    doors: 'انقر على الجدار في مكان الباب لإضافة نقطة • اسحب النقطة لنقلها • نقرة يمين أو <kbd>Delete</kbd> للحذف — البرنامج يلصق الباب بأقرب جدار ويفتحه نحو الغرفة' + common,
+    icons: 'اختر الرمز من الشريط ثم انقر مكانه • اسحب الرمز لنقله • نقرة يمين أو <kbd>Delete</kbd> للحذف' + common,
+    view: 'هذه الخريطة النهائية كما ستظهر في الموقع (بعد آخر حفظ)' + common,
+  }[mode];
+}
+function setMode(m){
+  mode = m; sel = null;
+  document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  $('palette').classList.toggle('hidden', m !== 'icons');
+  $('doorTools').classList.toggle('hidden', m !== 'doors');
+  stage.classList.toggle('view', m === 'view');
+  setHelp(); setBg(); render();
+}
+function setFloor(f){
+  floor = f; sel = null;
+  document.querySelectorAll('#floors button').forEach(b => b.classList.toggle('on', b.dataset.floor === f));
+  setBg(); render();
+}
+
+$('floors').onclick = e => { const b = e.target.closest('button'); if (b) setFloor(b.dataset.floor); };
+$('modes').onclick = e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.mode); };
+$('palette').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  iconType = b.dataset.type; buildPalette();
+  if (sel && sel.kind === 'icon'){ pushUndo(); marks[floor].icons[sel.i].type = iconType; markDirty(); render(); }
+};
+$('showPaths').onchange = render;
+$('undo').onclick = undo;
+
+$('suggest').onclick = async () => {
+  try {
+    const s = await getJSON(`.cache/suggest-${floor}.json`);
+    pushUndo();
+    const D = marks[floor].doors; let n = 0;
+    for (const d of s.doors) if (!D.some(q => Math.hypot(q.x - d.x, q.y - d.y) < 6)) { D.push({x:d.x, y:d.y}); n++; }
+    markDirty(); render(); setStatus(`أُضيف ${n} باب مقترح — احذف الخاطئ منها ثم احفظ`, true);
+  } catch { setStatus('لا توجد اقتراحات (شغّل البناء أولاً)'); }
+};
+$('clearDoors').onclick = () => {
+  if (!marks[floor].doors.length || !confirm('مسح كل نقاط الأبواب في هذا الطابق؟ (يمكن التراجع)')) return;
+  pushUndo(); marks[floor].doors = []; sel = null; markDirty(); render();
+};
+
+async function save(){
+  if (busy) return; busy = true; $('save').disabled = true; setStatus('جارٍ الحفظ وبناء الخريطة…');
+  try {
+    const r = await fetch('/api/marks', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(marks)});
+    const res = await r.json();
+    if (!res.ok) { setStatus('فشل البناء — التفاصيل في Console', true); console.error(res.log); return; }
+    report = res.report || {}; dirty = false;
+    const parts = ['1','2'].map(f => {
+      const R = report[f] || {}; const u = (R.unplaced || []).length;
+      return `${f === '1' ? 'الأرضي' : 'العلوي'}: ${R.doors || 0} باب` + (u ? ` (${u} نقطة بعيدة عن الجدار بالأحمر)` : '');
+    });
+    setStatus('تم الحفظ ✓ — ' + parts.join(' • '));
+    setBg(); render();
+  } catch (e) { setStatus('تعذّر الاتصال بالخادم — هل يعمل map_editor_server.py؟', true); }
+  finally { busy = false; $('save').disabled = false; }
+}
+$('save').onclick = save;
+
+$('fixPaths').onclick = async () => {
+  if (!confirm('سيُعاد بناء ملف المسارات paths.rel.js كاملاً: أقصر طريق في منتصف السيب من المدخل (أو الدرج) حتى باب كل قاعة.\nيمكن الرجوع عنه من git. متابعة؟')) return;
+  if (dirty) await save();
+  busy = true; setStatus('جارٍ بناء شبكة المسارات…');
+  try {
+    const res = await (await fetch('/api/fix-paths', {method:'POST'})).json();
+    report = res.report || report;
+    const P = report.paths || {};
+    const issues = [...(P.room_without_door || []).map(k => [k, 'قاعة بلا باب على السيب: ضع لها نقطة باب']),
+                    ...(P.unreachable || []).map(k => [k, 'لا يصلها طريق']),
+                    ...(P.off_corridor || []).map(([k]) => [k, 'جزء من المسار خارج السيب'])];
+    paths = await loadScriptData('../data/agri-food/male/paths.rel.js', 'pathsMap');
+    $('showPaths').checked = true; render();
+    setStatus(`بُني ${P.written || 0} مسار` + (issues.length ? ` • ${issues.length} تحتاج مراجعة (القائمة في Console)` : ''), !!issues.length);
+    if (issues.length) console.table(issues.map(([k, why]) => ({القاعة:k, السبب:why})));
+  } catch { setStatus('تعذّر بناء المسارات', true); }
+  finally { busy = false; }
+};
+
+// ───────── الماوس واللمس ─────────
+let drag = null;
+stage.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  const t = mode === 'view' ? null : e.target.closest('[data-kind]');
+  drag = {sx:e.clientX, sy:e.clientY, moved:false, t, vb0:{...vb}, u:unitsPerPx(), undo:false};
+  if (t) sel = {kind:t.dataset.kind, i:+t.dataset.i};
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  if (!drag.moved && Math.hypot(dx, dy) > 3) drag.moved = true;
+  if (!drag.moved) return;
+  if (drag.t){
+    if (!drag.undo){ pushUndo(); drag.undo = true; }
+    const p = toSvg(e), list = drag.t.dataset.kind === 'door' ? marks[floor].doors : marks[floor].icons;
+    const it = list[+drag.t.dataset.i]; it.x = +p.x.toFixed(1); it.y = +p.y.toFixed(1);
+    markDirty(); render();
+    drag.t = stage.querySelector(`[data-kind="${sel.kind}"][data-i="${sel.i}"]`);
+  } else {
+    vb.x = drag.vb0.x - dx * drag.u; vb.y = drag.vb0.y - dy * drag.u; applyVB();
+  }
+});
+stage.addEventListener('pointerup', e => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (d.moved && d.t && d.t.dataset.kind === 'door'){
+    const it = marks[floor].doors[+d.t.dataset.i], sp = snapDoor(it.x, it.y);
+    if (sp) Object.assign(it, doorDot(sp));
+  }
+  if (d.moved || mode === 'view') { render(); return; }
+  if (d.t) { render(); return; }                  // نقرة على علامة = تحديدها
+  const p = toSvg(e), pt = {x:+p.x.toFixed(1), y:+p.y.toFixed(1)};
+  pushUndo();
+  if (mode === 'doors'){
+    const sp = snapDoor(pt.x, pt.y);
+    if (!sp) { undoStack.pop(); setStatus('لا يوجد جدار قريب هنا — انقر على الجدار نفسه', true); return; }
+    marks[floor].doors.push(doorDot(sp)); sel = {kind:'door', i:marks[floor].doors.length - 1};
+  }
+  else { marks[floor].icons.push({type:iconType, ...pt}); sel = {kind:'icon', i:marks[floor].icons.length - 1}; }
+  markDirty(); render();
+});
+stage.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const t = e.target.closest('[data-kind]'); if (!t || mode === 'view') return;
+  sel = {kind:t.dataset.kind, i:+t.dataset.i}; removeSel();
+});
+stage.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoomAt(toSvg(e), e.deltaY > 0 ? 1.18 : 1 / 1.18);
+}, {passive:false});
+
+// تكبير حول نقطة (افتراضياً منتصف الشاشة)
+function zoomAt(p, f){
+  if (!p) p = {x: vb.x + vb.w / 2, y: vb.y + vb.h / 2};
+  const nw = Math.min(1500, Math.max(35, vb.w * f)), k = nw / vb.w;
+  vb = {x: p.x - (p.x - vb.x) * k, y: p.y - (p.y - vb.y) * k, w: nw, h: vb.h * k};
+  applyVB();
+}
+function fitAll(){ vb = {x:0, y:0, w:W, h:H}; applyVB(); }
+$('zin').onclick = () => zoomAt(null, 1 / 1.5);
+$('zout').onclick = () => zoomAt(null, 1.5);
+$('zfit').onclick = fitAll;
+for (const b of ['zin','zout','zfit']) $(b).addEventListener('pointerdown', e => e.stopPropagation());
+
+function removeSel(){
+  if (!sel) return;
+  pushUndo();
+  (sel.kind === 'door' ? marks[floor].doors : marks[floor].icons).splice(sel.i, 1);
+  sel = null; markDirty(); render();
+}
+window.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's'){ e.preventDefault(); save(); }
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){ e.preventDefault(); undo(); }
+  else if (e.key === 'Delete' || e.key === 'Backspace'){ removeSel(); }
+  else if (e.key === 'Escape'){ sel = null; render(); }
+  else if (e.key === '+' || e.key === '='){ zoomAt(null, 1 / 1.5); }
+  else if (e.key === '-'){ zoomAt(null, 1.5); }
+  else if (e.key === '0'){ fitAll(); }
+});
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('resize', render);
+
+async function loadGrids(){
+  for (const f of ['1','2']) { try { G[f] = await getJSON(`.cache/grid-${f}.json`); } catch { setStatus('شغّل البناء مرة (حفظ) حتى تظهر الأبواب', true); } }
+}
+
+// ───────── البداية ─────────
+(async () => {
+  buildPalette(); setHelp();
+  try { marks = await getJSON('map-marks.json'); } catch {}
+  for (const f of ['1','2']) { marks[f] = marks[f] || {}; marks[f].icons = marks[f].icons || []; marks[f].doors = marks[f].doors || []; }
+  try { report = await getJSON('.cache/report.json'); } catch {}
+  [rooms, paths] = await Promise.all([
+    loadScriptData('../data/agri-food/male/rooms.js', 'roomCoordinates'),
+    loadScriptData('../data/agri-food/male/paths.rel.js', 'pathsMap'),
+  ]);
+  await loadGrids();
+  stage.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  setBg(); render();
+  setStatus(location.protocol === 'file:' ? 'افتح المحرر عبر map_editor_server.py' : 'جاهز');
+})();
+</script>
+</body>
+</html>
